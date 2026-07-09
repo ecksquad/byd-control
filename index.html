@@ -683,7 +683,9 @@
     $("chargeSub").textContent = chargeSub;
 
     // status chips
-    var locked = state[E.locked] ? state[E.locked].state==="off" : null; // HA lock convention: on=unlocked
+    var haLocked = state[E.locked] ? state[E.locked].state==="off" : null; // HA lock convention: on=unlocked
+    if(lockOverride !== null && haLocked === lockOverride) lockOverride = null; // HA caught up - trust it again
+    var locked = lockOverride !== null ? lockOverride : haLocked;
     var doorsOpen = on(state[E.doors]);
     var windowsOpen = on(state[E.windows]);
     var sentry = on(state[E.sentry]);
@@ -795,34 +797,41 @@
     });
   }
   function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+  var lockOverride = null; // true=locked, false=unlocked, null=trust HA's own state
 
-  function controlAction(btn, path, body, label){
-    btn.disabled = true;
-    var beforeTs = state[E.telemetryUpdated] ? state[E.telemetryUpdated].state : null;
-    withBusy(controlCall(path, body))
-      .then(function(){
-        toast(label+" done — refreshing status…","ok");
-        // Resuming HA's polling doesn't force an immediate poll, it just
-        // un-pauses the normal 300-600s cycle - so ask for a fresh one now.
-        return haCall("button","press",{entity_id:E.forcePoll}).catch(function(){});
-      })
+  // Best-effort, non-blocking: nudge HA to catch up with reality in the
+  // background. The button already reflects the true result instantly
+  // (below) - this is just so the rest of the page (and HA itself) syncs
+  // up too, without making the user wait on HA's flaky polling for it.
+  function backgroundSync(beforeTs){
+    haCall("button","press",{entity_id:E.forcePoll}).catch(function(){})
       .then(function(){ return wait(5000); })
       .then(function(){ return haGet(E.telemetryUpdated).catch(function(){ return null; }); })
       .then(function(fresh){
         if(fresh && fresh.state !== beforeTs) return refresh();
         // HA's own poller can silently freeze (a known quirk of this
         // integration) - force_poll alone won't unstick it, only a full
-        // reload of the config entry will. Try that once as a fallback.
-        toast("Status looked stale — reloading the integration…","ok");
+        // reload of the config entry will.
         return haReloadEntry().catch(function(){})
           .then(function(){ return wait(8000); })
           .then(refresh);
+      });
+  }
+
+  function controlAction(btn, path, body, label, optimisticLocked){
+    btn.disabled = true;
+    var beforeTs = state[E.telemetryUpdated] ? state[E.telemetryUpdated].state : null;
+    withBusy(controlCall(path, body))
+      .then(function(){
+        toast(label+" done","ok");
+        if(optimisticLocked !== undefined){ lockOverride = optimisticLocked; render(); }
+        backgroundSync(beforeTs);
       })
       .catch(function(e){ toast(label+" failed: "+e.message,"err"); })
       .finally(function(){ btn.disabled = false; });
   }
-  $("lockBtn").addEventListener("click", function(){ controlAction(this, "/lock", {}, "Lock"); });
-  $("unlockBtn").addEventListener("click", function(){ controlAction(this, "/unlock", {}, "Unlock"); });
+  $("lockBtn").addEventListener("click", function(){ controlAction(this, "/lock", {}, "Lock", true); });
+  $("unlockBtn").addEventListener("click", function(){ controlAction(this, "/unlock", {}, "Unlock", false); });
   $("flashBtn").addEventListener("click", function(){ controlAction(this, "/flash_lights", {}, "Flash lights"); });
   $("findCarBtn").addEventListener("click", function(){ controlAction(this, "/find_car", {}, "Find car"); });
 
