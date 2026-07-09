@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BYD Atto 3 — Car Control</title>
+<style>
+  :root{
+    --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
+    --line:#22303f; --accent:#37b6e0; --accent-soft:rgba(55,182,224,.14); --accent-ink:#02202b;
+    --good:#35c37a; --good-soft:rgba(53,195,122,.15); --warn:#f0a83f; --warn-soft:rgba(240,168,63,.15);
+    --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme:light){
+    :root{ --bg:#eef2f5; --panel:#ffffff; --panel2:#f4f7f9; --ink:#101820; --muted:#5b6b78; --faint:#8b98a3;
+      --line:#dde4ea; --accent:#0d84ab; --accent-soft:#e2f3fa; --accent-ink:#ffffff;
+      --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
+      --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
+  }
+  :root[data-theme="dark"]{ --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
+    --line:#22303f; --accent:#37b6e0; --accent-soft:rgba(55,182,224,.14); --accent-ink:#02202b;
+    --good:#35c37a; --good-soft:rgba(53,195,122,.15); --warn:#f0a83f; --warn-soft:rgba(240,168,63,.15);
+    --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); }
+  :root[data-theme="light"]{ --bg:#eef2f5; --panel:#ffffff; --panel2:#f4f7f9; --ink:#101820; --muted:#5b6b78; --faint:#8b98a3;
+    --line:#dde4ea; --accent:#0d84ab; --accent-soft:#e2f3fa; --accent-ink:#ffffff;
+    --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
+    --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,ui-sans-serif,system-ui,sans-serif;}
+  body{padding:20px 16px 60px;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:920px}
+
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px}
+  .h-left{display:flex;align-items:center;gap:12px}
+  .h-title{font-size:20px;font-weight:750;letter-spacing:-.01em}
+  .h-sub{font-size:12px;color:var(--muted);margin-top:1px}
+  .h-actions{display:flex;align-items:center;gap:8px}
+  .icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+  .icon-btn:active{transform:scale(.95)}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:4px 10px;
+    border-radius:999px;letter-spacing:.02em}
+  .pill.online{background:var(--good-soft);color:var(--good)}
+  .pill.offline{background:var(--bad-soft);color:var(--bad)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+  .stale-banner{display:none;align-items:center;gap:10px;background:var(--warn-soft);color:var(--warn);
+    border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);border-radius:12px;padding:10px 14px;
+    font-size:13px;font-weight:600;margin-bottom:16px}
+  .stale-banner.show{display:flex}
+
+  .err-banner{display:none;background:var(--bad-soft);color:var(--bad);border:1px solid color-mix(in srgb, var(--bad) 35%, transparent);
+    border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px}
+  .err-banner.show{display:block}
+  .err-banner b{display:block;margin-bottom:3px}
+  #setupBanner{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
+  #setupBanner b{color:var(--ink)}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px}
+  .card h2{margin:0 0 14px;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+
+  /* overview */
+  .c-battery{grid-column:span 4}
+  .c-status{grid-column:span 8}
+  .c-vitals{grid-column:span 5}
+  .c-location{grid-column:span 4}
+  .c-tires{grid-column:span 3}
+  .c-charge{grid-column:span 7}
+  .c-util{grid-column:span 5}
+  @media (max-width:760px){
+    .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util{grid-column:span 12}
+  }
+
+  .batt-row{display:flex;align-items:center;gap:18px}
+  .batt-ring-wrap{position:relative;width:118px;height:118px;flex:none}
+  .batt-ring{position:absolute;inset:0;border-radius:50%}
+  .batt-ring-mask{position:absolute;inset:0;border-radius:50%;
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px));
+    mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px))}
+  .batt-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-variant-numeric:tabular-nums}
+  .batt-pct{font-size:28px;font-weight:750}
+  .batt-bolt{font-size:15px;margin-bottom:2px}
+  .batt-meta{display:flex;flex-direction:column;gap:6px}
+  .batt-meta .range{font-size:26px;font-weight:750;font-variant-numeric:tabular-nums}
+  .batt-meta .range small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+  .batt-meta .sub{font-size:12.5px;color:var(--muted)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:11px;padding:9px 12px;font-size:12.5px;font-weight:600;min-width:0}
+  .chip .ic{font-size:15px;line-height:1}
+  .chip.ok{color:var(--good)}
+  .chip.bad{color:var(--bad)}
+  .chip.neutral{color:var(--muted)}
+  .chip.warn{color:var(--warn)}
+
+  .vitals-list{display:flex;flex-direction:column;gap:0}
+  .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .vrow:last-child{border-bottom:none}
+  .vrow .k{font-size:13px;color:var(--muted)}
+  .vrow .v{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums}
+
+  .tire-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tire{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center}
+  .tire .k{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;font-weight:650}
+  .tire .v{font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+
+  .loc-row{display:flex;flex-direction:column;gap:8px}
+  .loc-state{font-size:16px;font-weight:700}
+  .loc-coords{font-family:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;font-size:12.5px;color:var(--muted)}
+  .loc-age{font-size:12px;color:var(--faint)}
+  .loc-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;
+    background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius:10px;padding:9px 12px;font-size:13px;font-weight:650;text-decoration:none}
+
+  .ctl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+  .ctl-row:last-child{border-bottom:none}
+  .ctl-label{display:flex;flex-direction:column;gap:2px}
+  .ctl-label .t{font-size:14px;font-weight:650}
+  .ctl-label .d{font-size:12px;color:var(--muted)}
+
+  .switch{position:relative;width:46px;height:27px;flex:none;cursor:pointer}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:.15s}
+  .switch .knob{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.35);transition:.15s}
+  .switch input:checked + .track{background:var(--accent)}
+  .switch input:checked + .track + .knob{transform:translateX(19px)}
+  .switch.disabled{opacity:.4;pointer-events:none}
+
+  .btn{appearance:none;border:none;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:650;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);width:100%}
+  .btn.primary:active{transform:scale(.99)}
+  .btn.primary:disabled{background:var(--line);color:var(--faint);cursor:not-allowed}
+  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:disabled{color:var(--faint);cursor:not-allowed}
+  .btn.small{padding:8px 12px;font-size:12.5px}
+
+  .time-row{display:flex;align-items:center;gap:10px}
+  .time-row input[type=time]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+    padding:8px 9px;font-size:13.5px;font-family:inherit;font-variant-numeric:tabular-nums}
+  .schedule-window{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .schedule-window b{color:var(--ink)}
+
+  .util-grid{display:flex;flex-direction:column;gap:10px}
+  .util-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .util-row .d{font-size:12px;color:var(--muted);max-width:60%;text-align:right}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(0);background:var(--panel);
+    border:1px solid var(--line);color:var(--ink);padding:11px 18px;border-radius:11px;font-size:13.5px;font-weight:600;
+    box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+  .toast.err{color:var(--bad)}
+  .toast.ok{color:var(--good)}
+
+  /* settings modal */
+  .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .modal-veil.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:420px;box-shadow:var(--shadow)}
+  .modal h3{margin:0 0 14px;font-size:16px}
+  .modal label{display:block;font-size:12px;font-weight:650;color:var(--muted);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.06em}
+  .modal input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+    padding:10px 11px;font-size:13.5px;font-family:inherit}
+  .modal .row{display:flex;gap:10px;margin-top:18px}
+  .modal .row .btn{flex:1}
+
+  footer{text-align:center;color:var(--faint);font-size:11.5px;margin-top:26px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="h-left">
+      <div>
+        <div class="h-title">BYD Atto 3</div>
+        <div class="h-sub" id="lastUpdated">—</div>
+      </div>
+      <span class="pill offline" id="onlinePill"><span class="dot"></span><span>—</span></span>
+    </div>
+    <div class="h-actions">
+      <button class="icon-btn" id="refreshBtn" title="Refresh now">&#8635;</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings">&#9881;</button>
+    </div>
+  </header>
+
+  <div class="err-banner" id="setupBanner">
+    <b>Set up your connection</b>
+    <span>Click the gear icon (top right) and paste in your Home Assistant URL and access token. They're saved only in this browser, never sent anywhere else.</span>
+  </div>
+  <div class="err-banner" id="errBanner">
+    <b>Can't reach Home Assistant</b>
+    <span id="errBannerText"></span>
+  </div>
+  <div class="stale-banner" id="staleBanner">
+    <span>&#9888;</span><span id="staleBannerText"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card c-battery">
+      <h2>Battery</h2>
+      <div class="batt-row">
+        <div class="batt-ring-wrap">
+          <div class="batt-ring" id="battRing"></div>
+          <div class="batt-ring-mask" style="background:var(--panel)"></div>
+          <div class="batt-face">
+            <div class="batt-bolt" id="battBolt" style="display:none">&#9889;</div>
+            <div class="batt-pct" id="battPct">--%</div>
+          </div>
+        </div>
+        <div class="batt-meta">
+          <div class="range" id="rangeVal">-- <small>km range</small></div>
+          <div class="sub" id="chargeSub">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card c-status">
+      <h2>Status</h2>
+      <div class="chips" id="statusChips"></div>
+    </div>
+
+    <div class="card c-vitals">
+      <h2>Vitals</h2>
+      <div class="vitals-list" id="vitalsList"></div>
+    </div>
+
+    <div class="card c-location">
+      <h2>Location</h2>
+      <div class="loc-row">
+        <div class="loc-state" id="locState">—</div>
+        <div class="loc-coords" id="locCoords">—, —</div>
+        <div class="loc-age" id="locAge">—</div>
+        <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
+      </div>
+    </div>
+
+    <div class="card c-tires">
+      <h2>Tire pressure</h2>
+      <div class="tire-grid">
+        <div class="tire"><div class="k">FL</div><div class="v" id="tireFL">--</div></div>
+        <div class="tire"><div class="k">FR</div><div class="v" id="tireFR">--</div></div>
+        <div class="tire"><div class="k">RL</div><div class="v" id="tireRL">--</div></div>
+        <div class="tire"><div class="k">RR</div><div class="v" id="tireRR">--</div></div>
+      </div>
+    </div>
+
+    <div class="card c-charge">
+      <h2>Charging control</h2>
+      <button class="btn primary" id="startChargeBtn" style="margin-bottom:14px">Start charging</button>
+
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Charge to full</div><div class="d">Overrides the schedule to always charge to 100%</div></div>
+        <label class="switch" id="swChargeFullWrap"><input type="checkbox" id="swChargeFull"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Schedule enabled</div><div class="d">Car auto-charges during the window below</div></div>
+        <label class="switch" id="swScheduleWrap"><input type="checkbox" id="swSchedule"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Repeat daily</div><div class="d">Off = one-off window (blocks charge-on-plug outside it)</div></div>
+        <label class="switch" id="swRepeatWrap"><input type="checkbox" id="swRepeat"><span class="track"></span><span class="knob"></span></label>
+      </div>
+
+      <div class="schedule-window">Window: <b id="schedWindow">--:-- – --:--</b></div>
+      <div class="time-row" style="margin-top:10px">
+        <input type="time" id="startTimeInput">
+        <span style="color:var(--faint)">&#8594;</span>
+        <input type="time" id="endTimeInput">
+        <button class="btn ghost small" id="setTimeBtn">Set</button>
+      </div>
+    </div>
+
+    <div class="card c-util">
+      <h2>Utilities</h2>
+      <div class="util-grid">
+        <div class="util-row">
+          <button class="btn ghost small" id="forcePollBtn">Force poll</button>
+          <span class="d">Ask the car for fresh data right now</span>
+        </div>
+        <div class="util-row">
+          <button class="btn ghost small" id="fetchEnergyBtn">Fetch energy data</button>
+          <span class="d">Pull latest charge/energy history</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Polls Home Assistant every 20s &middot; controls call real HA services against the car</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-veil" id="settingsVeil">
+  <div class="modal">
+    <h3>Connection settings</h3>
+    <label>Home Assistant URL</label>
+    <input id="cfgUrl" placeholder="https://your-ha.example.ts.net">
+    <label>Long-lived access token</label>
+    <input id="cfgToken" placeholder="eyJ...">
+    <div class="row">
+      <button class="btn ghost" id="cfgCancel">Cancel</button>
+      <button class="btn primary" id="cfgSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // No token baked in on purpose - this file is public (GitHub Pages). The
+  // URL alone isn't sensitive (it's a Tailscale hostname, useless without
+  // being on that tailnet + a valid token), so it's fine as a convenience
+  // default; the token itself must be entered via the gear icon and lives
+  // only in this browser's localStorage, same pattern as reflekt's haToken.
+  var DEFAULTS = {
+    haUrl: "https://homeassistant.tail655aa9.ts.net",
+    haToken: ""
+  };
+  var VIN_PREFIX = "byd_atto3zuo_duo";
+  var E = {
+    battery: "sensor."+VIN_PREFIX+"_battery_level",
+    range: "sensor."+VIN_PREFIX+"_range",
+    speed: "sensor."+VIN_PREFIX+"_speed",
+    odometer: "sensor."+VIN_PREFIX+"_odometer",
+    cabinTemp: "sensor."+VIN_PREFIX+"_cabin_temperature",
+    extTemp: "sensor."+VIN_PREFIX+"_exterior_temperature",
+    tireFL: "sensor."+VIN_PREFIX+"_front_left_tire_pressure",
+    tireFR: "sensor."+VIN_PREFIX+"_front_right_tire_pressure",
+    tireRL: "sensor."+VIN_PREFIX+"_rear_left_tire_pressure",
+    tireRR: "sensor."+VIN_PREFIX+"_rear_right_tire_pressure",
+    telemetryUpdated: "sensor."+VIN_PREFIX+"_telemetry_last_updated",
+    gpsUpdated: "sensor."+VIN_PREFIX+"_gps_last_updated",
+    location: "device_tracker."+VIN_PREFIX+"_location",
+    locked: "binary_sensor."+VIN_PREFIX+"_locked",
+    doors: "binary_sensor."+VIN_PREFIX+"_doors",
+    windows: "binary_sensor."+VIN_PREFIX+"_windows",
+    charging: "binary_sensor."+VIN_PREFIX+"_charging",
+    plug: "binary_sensor."+VIN_PREFIX+"_plug",
+    online: "binary_sensor."+VIN_PREFIX+"_online",
+    sentry: "binary_sensor."+VIN_PREFIX+"_sentry_mode",
+    startCharging: "button."+VIN_PREFIX+"_start_charging",
+    forcePoll: "button."+VIN_PREFIX+"_force_poll",
+    fetchEnergy: "button."+VIN_PREFIX+"_fetch_energy_data",
+    chargeToFull: "switch."+VIN_PREFIX+"_charge_to_full",
+    scheduleEnabled: "switch."+VIN_PREFIX+"_schedule_enabled",
+    repeatDaily: "switch."+VIN_PREFIX+"_repeat_daily",
+    startTime: "time."+VIN_PREFIX+"_start_time",
+    endTime: "time."+VIN_PREFIX+"_end_time"
+  };
+
+  function cfg(){
+    var stored = null;
+    try{ stored = JSON.parse(localStorage.getItem("carctrl_cfg")||"null"); }catch(e){}
+    return {
+      haUrl: (stored && stored.haUrl) || DEFAULTS.haUrl,
+      haToken: (stored && stored.haToken) || DEFAULTS.haToken
+    };
+  }
+  function saveCfg(c){ localStorage.setItem("carctrl_cfg", JSON.stringify(c)); }
+
+  function haGet(entity){
+    var c = cfg();
+    return fetch(c.haUrl.replace(/\/+$/,"")+"/api/states/"+encodeURIComponent(entity), {
+      headers:{ "Authorization":"Bearer "+c.haToken, "Content-Type":"application/json" }
+    }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); });
+  }
+  function haCall(domain, service, data){
+    var c = cfg();
+    return fetch(c.haUrl.replace(/\/+$/,"")+"/api/services/"+domain+"/"+service, {
+      method:"POST",
+      headers:{ "Authorization":"Bearer "+c.haToken, "Content-Type":"application/json" },
+      body: JSON.stringify(data||{})
+    }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json().catch(function(){return null;}); });
+  }
+  function num(s){
+    if(!s || s.state==="unavailable" || s.state==="unknown") return null;
+    var v = parseFloat(s.state); return isNaN(v) ? null : v;
+  }
+  function on(s){ return !!s && s.state==="on"; }
+  function $(id){ return document.getElementById(id); }
+
+  var toastTimer=null;
+  function toast(msg, kind){
+    var t=$("toast");
+    t.textContent=msg;
+    t.className="toast show"+(kind?" "+kind:"");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){ t.className="toast"; }, 3200);
+  }
+
+  function fmtAge(iso){
+    if(!iso) return null;
+    var ms = Date.now() - new Date(iso).getTime();
+    var min = Math.round(ms/60000);
+    if(min < 1) return "just now";
+    if(min < 60) return min+" min ago";
+    var hr = Math.floor(min/60);
+    return hr+"h "+(min%60)+"m ago";
+  }
+  function ageMinutes(iso){
+    if(!iso) return Infinity;
+    return (Date.now() - new Date(iso).getTime())/60000;
+  }
+
+  var busy = false;
+  function withBusy(promise){
+    busy = true; render();
+    return promise.finally(function(){ busy=false; });
+  }
+
+  var state = {}; // entity_id -> state object
+  var lastFetchOk = true;
+
+  function fetchAll(){
+    var ids = Object.keys(E).map(function(k){ return E[k]; });
+    return Promise.all(ids.map(function(id){
+      return haGet(id).then(function(s){ return {id:id, s:s}; }).catch(function(){ return {id:id, s:null}; });
+    })).then(function(results){
+      var anyOk = results.some(function(r){ return r.s !== null; });
+      lastFetchOk = anyOk;
+      results.forEach(function(r){ state[r.id]=r.s; });
+      return anyOk;
+    });
+  }
+
+  function battColor(pct){
+    if(pct===null) return "var(--faint)";
+    if(pct>50) return "var(--good)";
+    if(pct>20) return "var(--warn)";
+    return "var(--bad)";
+  }
+
+  function render(){
+    var errB=$("errBanner");
+    if(!lastFetchOk){
+      $("errBannerText").textContent = "The last request failed — check the URL/token in settings, and that this page's origin is allowed in Home Assistant's cors_allowed_origins.";
+      errB.classList.add("show");
+    } else {
+      errB.classList.remove("show");
+    }
+
+    var online = on(state[E.online]);
+    var onlinePill = $("onlinePill");
+    onlinePill.className = "pill "+(online?"online":"offline");
+    onlinePill.querySelector("span:last-child").textContent = online ? "Online" : "Offline";
+
+    var telAge = state[E.telemetryUpdated] ? ageMinutes(state[E.telemetryUpdated].state) : Infinity;
+    $("lastUpdated").textContent = state[E.telemetryUpdated] ? "Telemetry "+fmtAge(state[E.telemetryUpdated].state) : "—";
+    var staleB=$("staleBanner");
+    if(telAge > 20){
+      $("staleBannerText").textContent = "Telemetry hasn't updated in "+Math.round(telAge)+" min — data below may be out of date.";
+      staleB.classList.add("show");
+    } else {
+      staleB.classList.remove("show");
+    }
+
+    // battery
+    var battery = num(state[E.battery]);
+    var pct = battery!==null ? Math.max(0,Math.min(100,battery)) : null;
+    var col = battColor(pct);
+    $("battRing").style.background = "conic-gradient(from -90deg, "+col+" "+(pct||0)+"%, "+"color-mix(in srgb, "+col+" 12%, transparent) 0)";
+    $("battPct").textContent = pct!==null ? Math.round(pct)+"%" : "--%";
+    $("battPct").style.color = col;
+    var charging = on(state[E.charging]);
+    $("battBolt").style.display = charging ? "" : "none";
+
+    var range = num(state[E.range]);
+    $("rangeVal").innerHTML = (range!==null?Math.round(range):"--")+" <small>km range</small>";
+    var plugged = on(state[E.plug]);
+    var chargeSub = charging ? "Charging" : (plugged ? "Plugged in, idle" : "Not connected");
+    $("chargeSub").textContent = chargeSub;
+
+    // status chips
+    var locked = state[E.locked] ? state[E.locked].state==="off" : null; // HA lock convention: on=unlocked
+    var doorsOpen = on(state[E.doors]);
+    var windowsOpen = on(state[E.windows]);
+    var sentry = on(state[E.sentry]);
+    var chips = [];
+    chips.push(chipHtml(locked===null?"neutral":(locked?"ok":"bad"), locked===null?"&#128274;":(locked?"&#128274;":"&#128275;"), locked===null?"Lock: --":(locked?"Locked":"Unlocked")));
+    chips.push(chipHtml(doorsOpen?"bad":"ok", "&#128682;", doorsOpen?"Doors open":"Doors closed"));
+    chips.push(chipHtml(windowsOpen?"bad":"ok", "&#129747;", windowsOpen?"Windows open":"Windows closed"));
+    chips.push(chipHtml(plugged?(charging?"ok":"warn"):"neutral", "&#128267;", plugged?(charging?"Charging":"Plugged, idle"):"Unplugged"));
+    chips.push(chipHtml(sentry?"ok":"neutral", "&#128737;", sentry?"Sentry on":"Sentry off"));
+    $("statusChips").innerHTML = chips.join("");
+
+    // vitals
+    var cabin = num(state[E.cabinTemp]); if(cabin===0) cabin=null;
+    var ext = num(state[E.extTemp]);
+    var speed = num(state[E.speed]);
+    var odo = num(state[E.odometer]);
+    var vitals = [
+      ["Speed", speed!==null ? (speed>0 ? Math.round(speed)+" km/h" : "Parked") : "--"],
+      ["Cabin temp", cabin!==null ? cabin.toFixed(1)+"°C" : "--"],
+      ["Exterior temp", ext!==null ? ext.toFixed(1)+"°C" : "--"],
+      ["Odometer", odo!==null ? Math.round(odo).toLocaleString()+" km" : "--"]
+    ];
+    $("vitalsList").innerHTML = vitals.map(function(v){
+      return '<div class="vrow"><span class="k">'+v[0]+'</span><span class="v">'+v[1]+'</span></div>';
+    }).join("");
+
+    // tires
+    ["FL","FR","RL","RR"].forEach(function(pos){
+      var v = num(state[E["tire"+pos]]);
+      $("tire"+pos).textContent = v!==null ? Math.round(v)+" kPa" : "--";
+    });
+
+    // location
+    var loc = state[E.location];
+    if(loc && loc.attributes && typeof loc.attributes.latitude === "number"){
+      var lat=loc.attributes.latitude, lon=loc.attributes.longitude;
+      $("locState").textContent = loc.state==="home" ? "Home" : (loc.state==="not_home" ? "Away" : loc.state);
+      $("locCoords").textContent = lat.toFixed(5)+", "+lon.toFixed(5);
+      $("locAge").textContent = state[E.gpsUpdated] ? "GPS "+fmtAge(state[E.gpsUpdated].state) : "";
+      $("locLink").href = "https://www.google.com/maps?q="+lat+","+lon;
+    } else {
+      $("locState").textContent = "--"; $("locCoords").textContent = "—, —"; $("locAge").textContent = "";
+      $("locLink").href = "#";
+    }
+
+    // charging controls — reflect live state unless mid-action
+    setSwitchUI("swChargeFull", "swChargeFullWrap", state[E.chargeToFull]);
+    setSwitchUI("swSchedule", "swScheduleWrap", state[E.scheduleEnabled]);
+    setSwitchUI("swRepeat", "swRepeatWrap", state[E.repeatDaily]);
+
+    var st = state[E.startTime], et = state[E.endTime];
+    $("schedWindow").textContent = (st&&st.state?st.state.slice(0,5):"--:--")+" – "+(et&&et.state?et.state.slice(0,5):"--:--");
+    if(document.activeElement !== $("startTimeInput") && st && st.state) $("startTimeInput").value = st.state.slice(0,5);
+    if(document.activeElement !== $("endTimeInput") && et && et.state) $("endTimeInput").value = et.state.slice(0,5);
+
+    var startBtn = $("startChargeBtn");
+    var startEntity = state[E.startCharging];
+    var startAvailable = startEntity && startEntity.state !== "unavailable";
+    startBtn.disabled = busy || !startAvailable;
+    startBtn.textContent = !startAvailable ? "Start charging (unavailable)" : (busy ? "Working…" : "Start charging");
+
+    $("forcePollBtn").disabled = busy;
+    $("fetchEnergyBtn").disabled = busy;
+  }
+
+  function chipHtml(kind, icon, label){
+    return '<div class="chip '+kind+'"><span class="ic">'+icon+'</span><span>'+label+'</span></div>';
+  }
+
+  function setSwitchUI(inputId, wrapId, s){
+    var input = $(inputId);
+    if(document.activeElement === input) return; // don't fight an in-progress user toggle
+    input.checked = on(s);
+    $(wrapId).classList.toggle("disabled", !s || s.state==="unavailable");
+  }
+
+  var hasPromptedSetup = false;
+  function refresh(){
+    if(!cfg().haToken){
+      $("setupBanner").classList.add("show");
+      $("errBanner").classList.remove("show");
+      $("staleBanner").classList.remove("show");
+      if(!hasPromptedSetup){ hasPromptedSetup=true; $("settingsBtn").click(); }
+      return Promise.resolve();
+    }
+    $("setupBanner").classList.remove("show");
+    return fetchAll().then(render).catch(function(){ lastFetchOk=false; render(); });
+  }
+
+  // ---- control wiring ----
+  $("startChargeBtn").addEventListener("click", function(){
+    withBusy(haCall("button","press",{entity_id:E.startCharging}))
+      .then(function(){ toast("Charging started","ok"); return refresh(); })
+      .catch(function(){ toast("Couldn't start charging","err"); render(); });
+  });
+  $("forcePollBtn").addEventListener("click", function(){
+    withBusy(haCall("button","press",{entity_id:E.forcePoll}))
+      .then(function(){ toast("Requested a fresh poll","ok"); setTimeout(refresh, 2000); })
+      .catch(function(){ toast("Force poll failed","err"); render(); });
+  });
+  $("fetchEnergyBtn").addEventListener("click", function(){
+    withBusy(haCall("button","press",{entity_id:E.fetchEnergy}))
+      .then(function(){ toast("Requested energy data fetch","ok"); render(); })
+      .catch(function(){ toast("Fetch failed","err"); render(); });
+  });
+
+  function wireSwitch(inputId, entity, label){
+    $(inputId).addEventListener("change", function(e){
+      var wantOn = e.target.checked;
+      withBusy(haCall("switch", wantOn?"turn_on":"turn_off", {entity_id:entity}))
+        .then(function(){ toast(label+(wantOn?" on":" off"),"ok"); return refresh(); })
+        .catch(function(){ toast("Couldn't change "+label,"err"); refresh(); });
+    });
+  }
+  wireSwitch("swChargeFull", E.chargeToFull, "Charge to full");
+  wireSwitch("swSchedule", E.scheduleEnabled, "Schedule");
+  wireSwitch("swRepeat", E.repeatDaily, "Repeat daily");
+
+  $("setTimeBtn").addEventListener("click", function(){
+    var sv = $("startTimeInput").value, ev = $("endTimeInput").value;
+    if(!sv || !ev){ toast("Pick both times first","err"); return; }
+    withBusy(Promise.all([
+      haCall("time","set_value",{entity_id:E.startTime, time: sv+":00"}),
+      haCall("time","set_value",{entity_id:E.endTime, time: ev+":00"})
+    ])).then(function(){ toast("Schedule window updated","ok"); return refresh(); })
+      .catch(function(){ toast("Couldn't update schedule","err"); refresh(); });
+  });
+
+  $("refreshBtn").addEventListener("click", function(){ refresh(); });
+
+  // ---- settings modal ----
+  $("settingsBtn").addEventListener("click", function(){
+    var c = cfg();
+    $("cfgUrl").value = c.haUrl;
+    $("cfgToken").value = c.haToken;
+    $("settingsVeil").classList.add("show");
+  });
+  $("cfgCancel").addEventListener("click", function(){ $("settingsVeil").classList.remove("show"); });
+  $("cfgSave").addEventListener("click", function(){
+    saveCfg({ haUrl: $("cfgUrl").value.trim(), haToken: $("cfgToken").value.trim() });
+    $("settingsVeil").classList.remove("show");
+    toast("Settings saved","ok");
+    refresh();
+  });
+
+  refresh();
+  setInterval(refresh, 20000);
+})();
+</script>
+</body>
+</html>
