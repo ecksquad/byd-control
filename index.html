@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BYD Atto 3 — Car Control</title>
+<title>ANNIKAS CAR</title>
 <style>
   :root{
     --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
@@ -66,10 +66,15 @@
   #cursorGlow.click{width:20px;height:20px}
   @media (pointer:coarse){#cursorGlow{display:none}}
 
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px}
-  .h-left{display:flex;align-items:center;gap:12px}
-  .h-title{font-size:20px;font-weight:750;letter-spacing:-.01em}
-  .h-sub{font-size:12px;color:var(--muted);margin-top:1px;font-variant-numeric:tabular-nums}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px}
+  .h-left{display:flex;align-items:center;gap:14px}
+  .h-brand{display:flex;flex-direction:column}
+  .h-title{font-size:clamp(22px,4.2vw,30px);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    line-height:1.05;background:linear-gradient(100deg, var(--ink) 35%, var(--accent) 130%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .h-title small{display:block;font-size:.36em;font-weight:650;letter-spacing:.32em;color:var(--muted);
+    -webkit-text-fill-color:var(--muted);margin-top:3px}
+  .h-sub{font-size:12px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
   .h-actions{display:flex;align-items:center;gap:8px}
   .icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
     color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;
@@ -137,9 +142,21 @@
   .c-util{grid-column:span 5}
   .c-remote{grid-column:span 5}
   .c-climate{grid-column:span 7}
+  .c-windows{grid-column:span 6}
+  .c-comfort{grid-column:span 6}
   @media (max-width:760px){
-    .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate{grid-column:span 12}
+    .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
+    .c-windows,.c-comfort{grid-column:span 12}
   }
+
+  .seat-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+  .seat-row:last-child{border-bottom:none}
+  .seat-row .t{font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .seg button{appearance:none;border:none;background:none;color:var(--muted);font-size:12px;font-weight:650;
+    padding:6px 12px;border-radius:7px;cursor:pointer;transition:background .15s ease,color .15s ease;font-family:inherit}
+  .seg button.active{background:var(--accent);color:var(--accent-ink)}
+  .seg button:hover:not(.active){color:var(--ink)}
 
   .btn-row{display:flex;gap:10px}
   .btn-row .btn{flex:1}
@@ -299,8 +316,8 @@
 <div class="wrap">
   <header>
     <div class="h-left">
-      <div>
-        <div class="h-title">BYD Atto 3</div>
+      <div class="h-brand">
+        <div class="h-title">Annikas car<small>BYD Atto 3</small></div>
         <div class="h-sub" id="lastUpdated">—</div>
       </div>
       <span class="pill offline" id="onlinePill"><span class="dot"></span><span>—</span></span>
@@ -447,6 +464,46 @@
       <div class="btn-row">
         <button class="btn primary" id="climateStartBtn">Start climate</button>
         <button class="btn ghost" id="climateStopBtn">Stop</button>
+      </div>
+    </div>
+
+    <div class="card c-windows">
+      <h2>Windows &amp; boot</h2>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn ghost" id="windowsOpenBtn">&#129747; Crack windows</button>
+        <button class="btn ghost" id="windowsCloseBtn">&#11015; Close windows</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="trunkOpenBtn">&#128188; Open boot</button>
+        <button class="btn ghost" id="trunkCloseBtn">&#128188; Close boot</button>
+      </div>
+    </div>
+
+    <div class="card c-comfort">
+      <h2>Comfort</h2>
+      <div class="seat-row">
+        <span class="t">&#128664; Driver seat heat</span>
+        <div class="seg" data-seat="driver">
+          <button type="button" data-level="off" class="active">Off</button>
+          <button type="button" data-level="low">Low</button>
+          <button type="button" data-level="high">High</button>
+        </div>
+      </div>
+      <div class="seat-row">
+        <span class="t">&#128100; Passenger seat heat</span>
+        <div class="seg" data-seat="passenger">
+          <button type="button" data-level="off" class="active">Off</button>
+          <button type="button" data-level="low">Low</button>
+          <button type="button" data-level="high">High</button>
+        </div>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Steering wheel heat</div></div>
+        <label class="switch" id="swSteeringWrap"><input type="checkbox" id="swSteering"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Battery heat</div><div class="d">Warms the battery in cold weather</div></div>
+        <label class="switch" id="swBatteryHeatWrap"><input type="checkbox" id="swBatteryHeat"><span class="track"></span><span class="knob"></span></label>
       </div>
     </div>
   </div>
@@ -855,6 +912,45 @@
   $("climateStopBtn").addEventListener("click", function(){
     controlAction(this, "/climate/stop", {}, "Climate stop");
   });
+
+  $("windowsOpenBtn").addEventListener("click", function(){ controlAction(this, "/windows/open", {}, "Crack windows"); });
+  $("windowsCloseBtn").addEventListener("click", function(){ controlAction(this, "/windows/close", {}, "Close windows"); });
+  $("trunkOpenBtn").addEventListener("click", function(){ controlAction(this, "/trunk/open", {}, "Open boot"); });
+  $("trunkCloseBtn").addEventListener("click", function(){ controlAction(this, "/trunk/close", {}, "Close boot"); });
+
+  // ---- seat heat: 3-way segmented control (Off/Low/High), no button text
+  // swap since the labels themselves need to stay put ----
+  function quickAction(btn, path, body, label){
+    btn.disabled = true;
+    toast("Sending "+label.toLowerCase()+"…");
+    withBusy(controlCall(path, body))
+      .then(function(){ toast(label+" done","ok"); })
+      .catch(function(e){ toast(label+" failed: "+e.message,"err"); })
+      .finally(function(){ btn.disabled = false; });
+  }
+  document.querySelectorAll(".seg[data-seat]").forEach(function(seg){
+    var seatKey = seg.getAttribute("data-seat");
+    var path = seatKey === "driver" ? "/seat/driver/heat" : "/seat/passenger/heat";
+    var label = (seatKey === "driver" ? "Driver" : "Passenger")+" seat heat";
+    seg.querySelectorAll("button").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        seg.querySelectorAll("button").forEach(function(b){ b.classList.remove("active"); });
+        btn.classList.add("active");
+        quickAction(btn, path, {level: btn.getAttribute("data-level")}, label);
+      });
+    });
+  });
+
+  function wireControlSwitch(inputId, path, label){
+    $(inputId).addEventListener("change", function(e){
+      var wantOn = e.target.checked;
+      withBusy(controlCall(path, {on: wantOn}))
+        .then(function(){ toast(label+(wantOn?" on":" off"),"ok"); })
+        .catch(function(err){ toast("Couldn't change "+label+": "+err.message,"err"); e.target.checked = !wantOn; });
+    });
+  }
+  wireControlSwitch("swSteering", "/steering/heat", "Steering wheel heat");
+  wireControlSwitch("swBatteryHeat", "/battery_heat", "Battery heat");
 
   function wireSwitch(inputId, entity, label){
     $(inputId).addEventListener("change", function(e){
