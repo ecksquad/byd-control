@@ -786,16 +786,37 @@
   });
 
   // ---- vehicle control (lock/unlock/climate/flash/find via the control server) ----
+  var HA_ENTRY_ID = "01KWKQR5VT9H0BYKJW1EKNA681";
+  function haReloadEntry(){
+    var c = cfg();
+    return fetch(c.haUrl.replace(/\/+$/,"")+"/api/config/config_entries/entry/"+HA_ENTRY_ID+"/reload", {
+      method:"POST",
+      headers:{ "Authorization":"Bearer "+c.haToken }
+    });
+  }
+  function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+
   function controlAction(btn, path, body, label){
     btn.disabled = true;
+    var beforeTs = state[E.telemetryUpdated] ? state[E.telemetryUpdated].state : null;
     withBusy(controlCall(path, body))
       .then(function(){
         toast(label+" done — refreshing status…","ok");
         // Resuming HA's polling doesn't force an immediate poll, it just
         // un-pauses the normal 300-600s cycle - so ask for a fresh one now.
-        return haCall("button","press",{entity_id:E.forcePoll})
-          .catch(function(){})
-          .then(function(){ setTimeout(refresh, 4000); });
+        return haCall("button","press",{entity_id:E.forcePoll}).catch(function(){});
+      })
+      .then(function(){ return wait(5000); })
+      .then(function(){ return haGet(E.telemetryUpdated).catch(function(){ return null; }); })
+      .then(function(fresh){
+        if(fresh && fresh.state !== beforeTs) return refresh();
+        // HA's own poller can silently freeze (a known quirk of this
+        // integration) - force_poll alone won't unstick it, only a full
+        // reload of the config entry will. Try that once as a fallback.
+        toast("Status looked stale — reloading the integration…","ok");
+        return haReloadEntry().catch(function(){})
+          .then(function(){ return wait(8000); })
+          .then(refresh);
       })
       .catch(function(e){ toast(label+" failed: "+e.message,"err"); })
       .finally(function(){ btn.disabled = false; });
