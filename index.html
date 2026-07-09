@@ -820,6 +820,13 @@
 
   function controlAction(btn, path, body, label, optimisticLocked){
     btn.disabled = true;
+    var origText = btn.textContent;
+    btn.textContent = label+"…";
+    // The round trip genuinely takes several seconds (BYD's cloud has to
+    // authenticate, verify the PIN, dispatch, then poll for confirmation) -
+    // show something immediately so the button doesn't feel unresponsive
+    // while that plays out.
+    toast("Sending "+label.toLowerCase()+" command…");
     var beforeTs = state[E.telemetryUpdated] ? state[E.telemetryUpdated].state : null;
     withBusy(controlCall(path, body))
       .then(function(){
@@ -828,7 +835,7 @@
         backgroundSync(beforeTs);
       })
       .catch(function(e){ toast(label+" failed: "+e.message,"err"); })
-      .finally(function(){ btn.disabled = false; });
+      .finally(function(){ btn.disabled = false; btn.textContent = origText; });
   }
   $("lockBtn").addEventListener("click", function(){ controlAction(this, "/lock", {}, "Lock", true); });
   $("unlockBtn").addEventListener("click", function(){ controlAction(this, "/unlock", {}, "Unlock", false); });
