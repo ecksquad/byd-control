@@ -789,7 +789,14 @@
   function controlAction(btn, path, body, label){
     btn.disabled = true;
     withBusy(controlCall(path, body))
-      .then(function(){ toast(label+" done","ok"); setTimeout(refresh, 3000); })
+      .then(function(){
+        toast(label+" done — refreshing status…","ok");
+        // Resuming HA's polling doesn't force an immediate poll, it just
+        // un-pauses the normal 300-600s cycle - so ask for a fresh one now.
+        return haCall("button","press",{entity_id:E.forcePoll})
+          .catch(function(){})
+          .then(function(){ setTimeout(refresh, 4000); });
+      })
       .catch(function(e){ toast(label+" failed: "+e.message,"err"); })
       .finally(function(){ btn.disabled = false; });
   }
