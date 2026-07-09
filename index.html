@@ -26,26 +26,71 @@
     --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
     --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
 
+  @property --p{ syntax:'<number>'; inherits:false; initial-value:0 }
+
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,"Segoe UI",Roboto,ui-sans-serif,system-ui,sans-serif;}
-  body{padding:20px 16px 60px;display:flex;justify-content:center}
-  .wrap{width:100%;max-width:920px}
+  body{padding:20px 16px 60px;display:flex;justify-content:center;position:relative;min-height:100vh;overflow-x:hidden}
+  .wrap{width:100%;max-width:920px;position:relative;z-index:1}
+
+  ::selection{background:color-mix(in srgb, var(--accent) 35%, transparent);color:var(--ink)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--muted) 35%, transparent);border-radius:999px}
+  ::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb, var(--accent) 55%, transparent)}
+  html{scrollbar-width:thin;scrollbar-color:color-mix(in srgb, var(--muted) 35%, transparent) transparent}
+
+  a:focus-visible, button:focus-visible, input:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+  /* ambient drifting background */
+  body::before{
+    content:"";position:fixed;inset:-20%;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(38% 32% at 18% 22%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%),
+      radial-gradient(34% 30% at 84% 78%, color-mix(in srgb, var(--good) 15%, transparent), transparent 70%),
+      radial-gradient(28% 26% at 78% 10%, color-mix(in srgb, var(--warn) 11%, transparent), transparent 70%);
+    filter:blur(70px) saturate(140%);
+    animation:driftBg 26s ease-in-out infinite alternate;
+  }
+  @keyframes driftBg{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-4%,5%) scale(1.1)}}
+
+  /* custom cursor glow (fine pointers only) */
+  #cursorGlow{position:fixed;top:0;left:0;width:28px;height:28px;border-radius:50%;
+    border:1.5px solid color-mix(in srgb, var(--accent) 65%, transparent);
+    background:color-mix(in srgb, var(--accent) 12%, transparent);
+    pointer-events:none;z-index:999;transform:translate(-50%,-50%);
+    transition:width .2s ease,height .2s ease,background .2s ease,opacity .2s ease;will-change:transform}
+  #cursorGlow.hover{width:50px;height:50px;background:color-mix(in srgb, var(--accent) 20%, transparent)}
+  #cursorGlow.click{width:20px;height:20px}
+  @media (pointer:coarse){#cursorGlow{display:none}}
 
   header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px}
   .h-left{display:flex;align-items:center;gap:12px}
   .h-title{font-size:20px;font-weight:750;letter-spacing:-.01em}
-  .h-sub{font-size:12px;color:var(--muted);margin-top:1px}
+  .h-sub{font-size:12px;color:var(--muted);margin-top:1px;font-variant-numeric:tabular-nums}
   .h-actions{display:flex;align-items:center;gap:8px}
   .icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
-    color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
-  .icon-btn:active{transform:scale(.95)}
+    color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;
+    position:relative;overflow:hidden;
+    transition:transform .2s ease,color .2s ease,border-color .2s ease,background .2s ease}
+  .icon-btn:hover{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 45%, transparent);transform:translateY(-2px)}
+  .icon-btn:active{transform:scale(.92)}
+  .icon-btn.spin{animation:spin360 .6s ease}
+  @keyframes spin360{to{transform:rotate(360deg)}}
 
-  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:4px 10px;
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;padding:4px 10px;
     border-radius:999px;letter-spacing:.02em}
   .pill.online{background:var(--good-soft);color:var(--good)}
   .pill.offline{background:var(--bad-soft);color:var(--bad)}
   .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.online .dot{animation:pulseDot 2s ease-in-out infinite}
+  @keyframes pulseDot{
+    0%{box-shadow:0 0 0 0 color-mix(in srgb, currentColor 55%, transparent)}
+    70%{box-shadow:0 0 0 7px transparent}
+    100%{box-shadow:0 0 0 0 transparent}
+  }
 
   .stale-banner{display:none;align-items:center;gap:10px;background:var(--warn-soft);color:var(--warn);
     border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);border-radius:12px;padding:10px 14px;
@@ -60,7 +105,26 @@
   #setupBanner b{color:var(--ink)}
 
   .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px}
+  .card{
+    background:color-mix(in srgb, var(--panel) 74%, transparent);
+    backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+    border-radius:18px;box-shadow:var(--shadow);padding:18px;
+    position:relative;overflow:hidden;--mx:50%;--my:50%;
+    opacity:0;transform:translateY(16px);
+    transition:opacity .55s cubic-bezier(.16,.8,.24,1),transform .55s cubic-bezier(.16,.8,.24,1),
+      box-shadow .35s ease,border-color .35s ease;
+  }
+  .card.in{opacity:1;transform:translateY(0)}
+  .card.ready{transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .35s ease,border-color .35s ease}
+  .card::before{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s ease;z-index:0;
+    background:radial-gradient(240px circle at var(--mx) var(--my), color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%);
+  }
+  .card:hover::before{opacity:1}
+  .card:hover{border-color:color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow:0 22px 55px rgba(0,0,0,.35),0 2px 10px rgba(0,0,0,.2)}
+  .card > *{position:relative;z-index:1}
   .card h2{margin:0 0 14px;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 
   /* overview */
@@ -77,14 +141,19 @@
 
   .batt-row{display:flex;align-items:center;gap:18px}
   .batt-ring-wrap{position:relative;width:118px;height:118px;flex:none}
-  .batt-ring{position:absolute;inset:0;border-radius:50%}
-  .batt-ring-mask{position:absolute;inset:0;border-radius:50%;
+  .batt-ring{
+    position:absolute;inset:0;border-radius:50%;--p:0;--ring-col:var(--faint);
+    background:conic-gradient(from -90deg, var(--ring-col) calc(var(--p) * 1%), color-mix(in srgb, var(--ring-col) 14%, transparent) 0);
     -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px));
-    mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px))}
+    mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px));
+    transition:--p 900ms cubic-bezier(.22,.8,.2,1), background-color .4s ease;
+    filter:drop-shadow(0 0 9px color-mix(in srgb, var(--ring-col) 50%, transparent));
+  }
   .batt-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-variant-numeric:tabular-nums}
-  .batt-pct{font-size:28px;font-weight:750}
-  .batt-bolt{font-size:15px;margin-bottom:2px}
+  .batt-pct{font-size:28px;font-weight:750;transition:color .3s ease}
+  .batt-bolt{font-size:15px;margin-bottom:2px;animation:boltPulse 1.4s ease-in-out infinite}
+  @keyframes boltPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.18)}}
   .batt-meta{display:flex;flex-direction:column;gap:6px}
   .batt-meta .range{font-size:26px;font-weight:750;font-variant-numeric:tabular-nums}
   .batt-meta .range small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
@@ -92,7 +161,9 @@
 
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);
-    border-radius:11px;padding:9px 12px;font-size:12.5px;font-weight:600;min-width:0}
+    border-radius:11px;padding:9px 12px;font-size:12.5px;font-weight:600;min-width:0;
+    transition:transform .2s ease,border-color .2s ease}
+  .chip:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
   .chip .ic{font-size:15px;line-height:1}
   .chip.ok{color:var(--good)}
   .chip.bad{color:var(--bad)}
@@ -100,13 +171,17 @@
   .chip.warn{color:var(--warn)}
 
   .vitals-list{display:flex;flex-direction:column;gap:0}
-  .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--line);
+    transition:padding-left .2s ease}
+  .vrow:hover{padding-left:4px}
   .vrow:last-child{border-bottom:none}
   .vrow .k{font-size:13px;color:var(--muted)}
   .vrow .v{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums}
 
   .tire-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .tire{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center}
+  .tire{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center;
+    transition:transform .2s ease,border-color .2s ease}
+  .tire:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
   .tire .k{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;font-weight:650}
   .tire .v{font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
 
@@ -116,7 +191,9 @@
   .loc-age{font-size:12px;color:var(--faint)}
   .loc-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;
     background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-    border-radius:10px;padding:9px 12px;font-size:13px;font-weight:650;text-decoration:none}
+    border-radius:10px;padding:9px 12px;font-size:13px;font-weight:650;text-decoration:none;
+    transition:transform .2s ease,background .2s ease}
+  .loc-link:hover{transform:translateY(-2px);background:color-mix(in srgb, var(--accent) 24%, transparent)}
 
   .ctl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
   .ctl-row:last-child{border-bottom:none}
@@ -126,25 +203,35 @@
 
   .switch{position:relative;width:46px;height:27px;flex:none;cursor:pointer}
   .switch input{opacity:0;width:0;height:0;position:absolute}
-  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:.15s}
+  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .2s ease,box-shadow .2s ease}
   .switch .knob{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;
-    box-shadow:0 1px 3px rgba(0,0,0,.35);transition:.15s}
-  .switch input:checked + .track{background:var(--accent)}
-  .switch input:checked + .track + .knob{transform:translateX(19px)}
+    box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .28s cubic-bezier(.34,1.4,.64,1),box-shadow .2s ease}
+  .switch input:checked + .track{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent)}
+  .switch input:checked + .track + .knob{transform:translateX(19px);box-shadow:0 1px 3px rgba(0,0,0,.35),0 0 8px color-mix(in srgb, var(--accent) 65%, transparent)}
   .switch.disabled{opacity:.4;pointer-events:none}
+  .switch:focus-within .track{outline:2px solid var(--accent);outline-offset:2px}
 
   .btn{appearance:none;border:none;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:650;cursor:pointer;
-    display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit}
-  .btn.primary{background:var(--accent);color:var(--accent-ink);width:100%}
-  .btn.primary:active{transform:scale(.99)}
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit;
+    position:relative;overflow:hidden}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);width:100%;
+    transition:transform .15s ease,box-shadow .25s ease,filter .2s ease}
+  .btn.primary:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 10px 26px color-mix(in srgb, var(--accent) 38%, transparent);transform:translateY(-1px)}
+  .btn.primary:active:not(:disabled){transform:scale(.99)}
   .btn.primary:disabled{background:var(--line);color:var(--faint);cursor:not-allowed}
-  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    transition:transform .15s ease,border-color .2s ease,background .2s ease}
+  .btn.ghost:hover:not(:disabled){border-color:color-mix(in srgb, var(--accent) 45%, transparent);transform:translateY(-1px)}
   .btn.ghost:disabled{color:var(--faint);cursor:not-allowed}
   .btn.small{padding:8px 12px;font-size:12.5px}
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);
+    animation:rippleAnim .6s ease-out forwards;pointer-events:none}
+  @keyframes rippleAnim{to{transform:scale(1);opacity:0}}
 
   .time-row{display:flex;align-items:center;gap:10px}
   .time-row input[type=time]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
-    padding:8px 9px;font-size:13.5px;font-family:inherit;font-variant-numeric:tabular-nums}
+    padding:8px 9px;font-size:13.5px;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color .2s ease}
+  .time-row input[type=time]:hover{border-color:color-mix(in srgb, var(--accent) 40%, transparent)}
   .schedule-window{font-size:12.5px;color:var(--muted);margin-top:10px}
   .schedule-window b{color:var(--ink)}
 
@@ -152,28 +239,43 @@
   .util-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .util-row .d{font-size:12px;color:var(--muted);max-width:60%;text-align:right}
 
-  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(0);background:var(--panel);
-    border:1px solid var(--line);color:var(--ink);padding:11px 18px;border-radius:11px;font-size:13.5px;font-weight:600;
-    box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:90vw;text-align:center}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px) scale(.92);
+    background:color-mix(in srgb, var(--panel) 88%, transparent);backdrop-filter:blur(16px) saturate(160%);
+    -webkit-backdrop-filter:blur(16px) saturate(160%);
+    border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);color:var(--ink);
+    padding:12px 20px;border-radius:13px;font-size:13.5px;font-weight:650;
+    box-shadow:0 20px 50px rgba(0,0,0,.4);opacity:0;pointer-events:none;
+    transition:opacity .3s ease,transform .3s cubic-bezier(.2,1.4,.4,1);z-index:70;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
   .toast.err{color:var(--bad)}
   .toast.ok{color:var(--good)}
 
   /* settings modal */
-  .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
   .modal-veil.show{display:flex}
-  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:420px;box-shadow:var(--shadow)}
+  .modal{background:color-mix(in srgb, var(--panel) 92%, transparent);backdrop-filter:blur(20px);border:1px solid var(--line);
+    border-radius:16px;padding:22px;width:100%;max-width:420px;box-shadow:var(--shadow);
+    animation:modalIn .3s cubic-bezier(.2,1.2,.4,1)}
+  @keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   .modal h3{margin:0 0 14px;font-size:16px}
   .modal label{display:block;font-size:12px;font-weight:650;color:var(--muted);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.06em}
   .modal input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
-    padding:10px 11px;font-size:13.5px;font-family:inherit}
+    padding:10px 11px;font-size:13.5px;font-family:inherit;transition:border-color .2s ease}
+  .modal input:focus{border-color:var(--accent)}
   .modal .row{display:flex;gap:10px;margin-top:18px}
   .modal .row .btn{flex:1}
 
   footer{text-align:center;color:var(--faint);font-size:11.5px;margin-top:26px}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+    body::before{display:none}
+    #cursorGlow{display:none}
+  }
 </style>
 </head>
 <body>
+<div id="cursorGlow" aria-hidden="true"></div>
 <div class="wrap">
   <header>
     <div class="h-left">
@@ -207,14 +309,13 @@
       <div class="batt-row">
         <div class="batt-ring-wrap">
           <div class="batt-ring" id="battRing"></div>
-          <div class="batt-ring-mask" style="background:var(--panel)"></div>
           <div class="batt-face">
             <div class="batt-bolt" id="battBolt" style="display:none">&#9889;</div>
             <div class="batt-pct" id="battPct">--%</div>
           </div>
         </div>
         <div class="batt-meta">
-          <div class="range" id="rangeVal">-- <small>km range</small></div>
+          <div class="range"><span id="rangeVal">--</span> <small>km range</small></div>
           <div class="sub" id="chargeSub">—</div>
         </div>
       </div>
@@ -227,7 +328,12 @@
 
     <div class="card c-vitals">
       <h2>Vitals</h2>
-      <div class="vitals-list" id="vitalsList"></div>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Speed</span><span class="v" id="vitSpeed">--</span></div>
+        <div class="vrow"><span class="k">Cabin temp</span><span class="v" id="vitCabin">--</span></div>
+        <div class="vrow"><span class="k">Exterior temp</span><span class="v" id="vitExt">--</span></div>
+        <div class="vrow"><span class="k">Odometer</span><span class="v" id="vitOdo">--</span></div>
+      </div>
     </div>
 
     <div class="card c-location">
@@ -385,6 +491,7 @@
   }
   function on(s){ return !!s && s.state==="on"; }
   function $(id){ return document.getElementById(id); }
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   var toastTimer=null;
   function toast(msg, kind){
@@ -407,6 +514,26 @@
   function ageMinutes(iso){
     if(!iso) return Infinity;
     return (Date.now() - new Date(iso).getTime())/60000;
+  }
+
+  // ---- animated count-up for numeric readouts ----
+  var numCache = {};
+  function animateNumber(id, to, decimals, suffix){
+    var el = $(id);
+    if(to===null || to===undefined){ el.textContent = "--"; numCache[id]=null; return; }
+    var from = numCache[id];
+    if(from===null||from===undefined) from = to;
+    numCache[id] = to;
+    var fmt = function(v){ return decimals ? v.toFixed(decimals) : Math.round(v).toLocaleString(); };
+    if(from===to || reduceMotion){ el.textContent = fmt(to)+(suffix||""); return; }
+    var start = performance.now(), dur = 700;
+    (function step(now){
+      var t = Math.min(1, (now-start)/dur);
+      var eased = 1-Math.pow(1-t,3);
+      var val = from + (to-from)*eased;
+      el.textContent = fmt(val)+(suffix||"");
+      if(t<1) requestAnimationFrame(step);
+    })(start);
   }
 
   var busy = false;
@@ -461,18 +588,20 @@
       staleB.classList.remove("show");
     }
 
-    // battery
+    // battery ring - animated via CSS custom properties (--p, --ring-col)
     var battery = num(state[E.battery]);
     var pct = battery!==null ? Math.max(0,Math.min(100,battery)) : null;
     var col = battColor(pct);
-    $("battRing").style.background = "conic-gradient(from -90deg, "+col+" "+(pct||0)+"%, "+"color-mix(in srgb, "+col+" 12%, transparent) 0)";
-    $("battPct").textContent = pct!==null ? Math.round(pct)+"%" : "--%";
+    var ring = $("battRing");
+    ring.style.setProperty("--p", pct!==null ? pct : 0);
+    ring.style.setProperty("--ring-col", col);
+    animateNumber("battPct", pct, 0, "%");
     $("battPct").style.color = col;
     var charging = on(state[E.charging]);
     $("battBolt").style.display = charging ? "" : "none";
 
     var range = num(state[E.range]);
-    $("rangeVal").innerHTML = (range!==null?Math.round(range):"--")+" <small>km range</small>";
+    animateNumber("rangeVal", range, 0, "");
     var plugged = on(state[E.plug]);
     var chargeSub = charging ? "Charging" : (plugged ? "Plugged in, idle" : "Not connected");
     $("chargeSub").textContent = chargeSub;
@@ -495,20 +624,15 @@
     var ext = num(state[E.extTemp]);
     var speed = num(state[E.speed]);
     var odo = num(state[E.odometer]);
-    var vitals = [
-      ["Speed", speed!==null ? (speed>0 ? Math.round(speed)+" km/h" : "Parked") : "--"],
-      ["Cabin temp", cabin!==null ? cabin.toFixed(1)+"°C" : "--"],
-      ["Exterior temp", ext!==null ? ext.toFixed(1)+"°C" : "--"],
-      ["Odometer", odo!==null ? Math.round(odo).toLocaleString()+" km" : "--"]
-    ];
-    $("vitalsList").innerHTML = vitals.map(function(v){
-      return '<div class="vrow"><span class="k">'+v[0]+'</span><span class="v">'+v[1]+'</span></div>';
-    }).join("");
+    $("vitSpeed").textContent = speed!==null ? (speed>0 ? Math.round(speed)+" km/h" : "Parked") : "--";
+    animateNumber("vitCabin", cabin, 1, "°C");
+    animateNumber("vitExt", ext, 1, "°C");
+    animateNumber("vitOdo", odo, 0, " km");
 
     // tires
     ["FL","FR","RL","RR"].forEach(function(pos){
       var v = num(state[E["tire"+pos]]);
-      $("tire"+pos).textContent = v!==null ? Math.round(v)+" kPa" : "--";
+      animateNumber("tire"+pos, v, 0, " kPa");
     });
 
     // location
@@ -607,7 +731,10 @@
       .catch(function(){ toast("Couldn't update schedule","err"); refresh(); });
   });
 
-  $("refreshBtn").addEventListener("click", function(){ refresh(); });
+  $("refreshBtn").addEventListener("click", function(){
+    if(!reduceMotion){ this.classList.remove("spin"); void this.offsetWidth; this.classList.add("spin"); }
+    refresh();
+  });
 
   // ---- settings modal ----
   $("settingsBtn").addEventListener("click", function(){
@@ -623,6 +750,69 @@
     toast("Settings saved","ok");
     refresh();
   });
+
+  // ---- entrance animation ----
+  var cardEls = document.querySelectorAll(".card");
+  cardEls.forEach(function(c, i){
+    if(reduceMotion){ c.classList.add("in","ready"); return; }
+    setTimeout(function(){ c.classList.add("in"); }, 70 + i*70);
+    setTimeout(function(){ c.classList.add("ready"); }, 700 + i*70);
+  });
+
+  // ---- card spotlight + 3D tilt ----
+  cardEls.forEach(function(card){
+    card.addEventListener("mousemove", function(e){
+      var r = card.getBoundingClientRect();
+      var x = e.clientX - r.left, y = e.clientY - r.top;
+      card.style.setProperty("--mx", (x/r.width*100)+"%");
+      card.style.setProperty("--my", (y/r.height*100)+"%");
+      if(!reduceMotion){
+        var rx = ((y/r.height)-0.5) * -6;
+        var ry = ((x/r.width)-0.5) * 8;
+        card.style.transform = "perspective(900px) rotateX("+rx.toFixed(2)+"deg) rotateY("+ry.toFixed(2)+"deg) translateY(-4px)";
+      }
+    });
+    card.addEventListener("mouseleave", function(){ card.style.transform = ""; });
+  });
+
+  // ---- ripple on buttons ----
+  if(!reduceMotion){
+    document.querySelectorAll(".btn, .icon-btn").forEach(function(btn){
+      btn.addEventListener("click", function(e){
+        var rect = btn.getBoundingClientRect();
+        var d = Math.max(rect.width, rect.height) * 1.6;
+        var span = document.createElement("span");
+        span.className = "ripple";
+        span.style.width = span.style.height = d+"px";
+        span.style.left = (e.clientX - rect.left - d/2)+"px";
+        span.style.top = (e.clientY - rect.top - d/2)+"px";
+        btn.appendChild(span);
+        span.addEventListener("animationend", function(){ span.remove(); });
+      });
+    });
+  }
+
+  // ---- custom cursor glow (fine pointers, motion allowed) ----
+  if(!reduceMotion && window.matchMedia("(pointer:fine)").matches){
+    var glow = $("cursorGlow");
+    var mx=innerWidth/2, my=innerHeight/2, cx=mx, cy=my;
+    window.addEventListener("mousemove", function(e){ mx=e.clientX; my=e.clientY; });
+    document.addEventListener("mouseover", function(e){
+      if(e.target.closest("a,button,.switch,.chip,input,.card")) glow.classList.add("hover");
+    });
+    document.addEventListener("mouseout", function(e){
+      if(e.target.closest("a,button,.switch,.chip,input,.card")) glow.classList.remove("hover");
+    });
+    document.addEventListener("mousedown", function(){ glow.classList.add("click"); });
+    document.addEventListener("mouseup", function(){ glow.classList.remove("click"); });
+    (function loop(){
+      cx += (mx-cx)*0.2; cy += (my-cy)*0.2;
+      glow.style.transform = "translate("+cx+"px,"+cy+"px) translate(-50%,-50%)";
+      requestAnimationFrame(loop);
+    })();
+  } else {
+    var gEl = $("cursorGlow"); if(gEl) gEl.style.display = "none";
+  }
 
   refresh();
   setInterval(refresh, 20000);
