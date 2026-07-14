@@ -144,10 +144,24 @@
   .c-climate{grid-column:span 7}
   .c-windows{grid-column:span 6}
   .c-comfort{grid-column:span 6}
+  .c-history{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
-    .c-windows,.c-comfort{grid-column:span 12}
+    .c-windows,.c-comfort,.c-history{grid-column:span 12}
   }
+
+  .charge-table-wrap{overflow-x:auto}
+  table.charge-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .charge-table th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);
+    text-align:right;padding:6px 10px;border-bottom:1px solid var(--line);font-weight:650;white-space:nowrap}
+  .charge-table th:first-child{text-align:left}
+  .charge-table td{font-size:13.5px;padding:9px 10px;border-bottom:1px dashed var(--line);
+    text-align:right;white-space:nowrap;font-weight:600}
+  .charge-table td:first-child{text-align:left}
+  .charge-table tr:last-child td{border-bottom:none}
+  .charge-table td.cost{font-weight:750;color:var(--accent)}
+  .charge-table td.msg{text-align:left;color:var(--muted);font-weight:500;white-space:normal}
+  .charge-note{font-size:11.5px;color:var(--faint);margin-top:10px}
 
   .seat-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
   .seat-row:last-child{border-bottom:none}
@@ -506,6 +520,21 @@
         <label class="switch" id="swBatteryHeatWrap"><input type="checkbox" id="swBatteryHeat"><span class="track"></span><span class="knob"></span></label>
       </div>
     </div>
+
+    <div class="card c-history">
+      <h2>Previous charges</h2>
+      <div class="charge-table-wrap">
+        <table class="charge-table">
+          <thead>
+            <tr><th>Started</th><th>Duration</th><th>Energy</th><th>Avg power</th><th>Avg price</th><th>Cost</th></tr>
+          </thead>
+          <tbody id="chargeRows">
+            <tr><td class="msg" colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="charge-note">Estimated from battery power &times; Nord Pool SE3 spot price during each charge — excludes grid fees, VAT and charging losses. Logged by the mirror since 7 Jul 2026.</div>
+    </div>
   </div>
 
   <footer>Polls Home Assistant every 20s &middot; lock/unlock/climate call BYD's cloud directly</footer>
@@ -596,6 +625,18 @@
       method:"POST",
       headers:{ "X-Api-Key": c.controlKey, "Content-Type":"application/json" },
       body: JSON.stringify(body||{})
+    }).then(function(r){
+      return r.json().catch(function(){ return null; }).then(function(j){
+        if(!r.ok || !j || !j.ok) throw new Error((j && j.error) || ("http "+r.status));
+        return j;
+      });
+    });
+  }
+
+  function controlGet(path){
+    var c = cfg();
+    return fetch(c.controlUrl.replace(/\/+$/,"")+path, {
+      headers:{ "X-Api-Key": c.controlKey }
     }).then(function(r){
       return r.json().catch(function(){ return null; }).then(function(j){
         if(!r.ok || !j || !j.ok) throw new Error((j && j.error) || ("http "+r.status));
@@ -974,9 +1015,52 @@
       .catch(function(){ toast("Couldn't update schedule","err"); refresh(); });
   });
 
+  // ---- previous charges table (log kept by the mirror, served by the control server) ----
+  function fmtDur(ms){
+    var min = Math.round(ms/60000);
+    var h = Math.floor(min/60), m = min%60;
+    return h > 0 ? h+" h "+(m<10?"0":"")+m+" min" : m+" min";
+  }
+  function fmtChargeDate(ts){
+    var d = new Date(ts);
+    return d.toLocaleDateString("sv-SE",{day:"numeric",month:"short"})+" "+
+           d.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"});
+  }
+  function chargeMsgRow(text, bad){
+    return '<tr><td class="msg" colspan="6"'+(bad?' style="color:var(--bad)"':'')+'>'+text+'</td></tr>';
+  }
+  function loadCharges(){
+    var body = $("chargeRows");
+    if(!cfg().controlKey){
+      body.innerHTML = chargeMsgRow("Add the control server API key in settings (gear icon) to see charge history.");
+      return;
+    }
+    controlGet("/charges").then(function(j){
+      var list = (j.charges||[]).slice().reverse(); // newest first
+      if(!list.length){ body.innerHTML = chargeMsgRow("No charges logged yet."); return; }
+      body.innerHTML = list.map(function(c){
+        var durMs = (c.startedAt && c.endedAt) ? c.endedAt - c.startedAt : null;
+        var hours = durMs ? durMs/3600000 : null;
+        var avgKw = (hours && c.energyKwh) ? c.energyKwh/hours : null;
+        var avgPrice = (c.energyKwh && c.cost!=null) ? c.cost/c.energyKwh : null;
+        return "<tr>"+
+          "<td>"+fmtChargeDate(c.startedAt || c.endedAt)+"</td>"+
+          "<td>"+(durMs!==null ? fmtDur(durMs) : "--")+"</td>"+
+          "<td>"+(c.energyKwh!=null ? c.energyKwh.toFixed(1)+" kWh" : "--")+"</td>"+
+          "<td>"+(avgKw!==null ? avgKw.toFixed(1)+" kW" : "--")+"</td>"+
+          "<td>"+(avgPrice!==null ? avgPrice.toFixed(2)+" kr/kWh" : "--")+"</td>"+
+          '<td class="cost">'+(c.cost!=null ? c.cost.toFixed(2)+" kr" : "--")+"</td>"+
+        "</tr>";
+      }).join("");
+    }).catch(function(e){
+      body.innerHTML = chargeMsgRow("Couldn't load charge history: "+e.message, true);
+    });
+  }
+
   $("refreshBtn").addEventListener("click", function(){
     if(!reduceMotion){ this.classList.remove("spin"); void this.offsetWidth; this.classList.add("spin"); }
     refresh();
+    loadCharges();
   });
 
   // ---- settings modal ----
@@ -997,6 +1081,7 @@
     $("settingsVeil").classList.remove("show");
     toast("Settings saved","ok");
     refresh();
+    loadCharges();
   });
 
   // ---- entrance animation ----
@@ -1064,6 +1149,8 @@
 
   refresh();
   setInterval(refresh, 20000);
+  loadCharges();
+  setInterval(loadCharges, 300000); // charges change rarely - 5 min is plenty
 })();
 </script>
 </body>
