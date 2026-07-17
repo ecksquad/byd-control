@@ -424,6 +424,11 @@
       <h2>Charging control</h2>
       <button class="btn primary" id="startChargeBtn" style="margin-bottom:14px">Start charging</button>
 
+      <div class="util-row" style="margin-bottom:14px">
+        <button class="btn ghost small" id="freeChargeBtn">&#127381; Gratis laddning</button>
+        <span class="d">Free public charger — sets this/last charge to 0 kr</span>
+      </div>
+
       <div class="ctl-row">
         <div class="ctl-label"><div class="t">Charge to full</div><div class="d">Overrides the schedule to always charge to 100%</div></div>
         <label class="switch" id="swChargeFullWrap"><input type="checkbox" id="swChargeFull"><span class="track"></span><span class="knob"></span></label>
@@ -868,6 +873,7 @@
 
     $("forcePollBtn").disabled = busy;
     $("fetchEnergyBtn").disabled = busy;
+    $("freeChargeBtn").disabled = busy;
   }
 
   function chipHtml(kind, icon, label){
@@ -899,6 +905,20 @@
     withBusy(haCall("button","press",{entity_id:E.startCharging}))
       .then(function(){ toast("Charging started","ok"); return refresh(); })
       .catch(function(){ toast("Couldn't start charging","err"); render(); });
+  });
+  // free public charger: zero the running session (logs 0 kr when it ends)
+  // or, if nothing is charging, the last completed charge - then refresh the
+  // table/kr-per-100km here; the mirror picks the same flag up within a minute
+  $("freeChargeBtn").addEventListener("click", function(){
+    withBusy(controlCall("/freecharge"))
+      .then(function(j){
+        toast(j.mode === "session"
+          ? "Pågående laddning är gratis — loggas som 0 kr när den är klar"
+          : "Senaste laddningen satt till 0 kr", "ok");
+        loadCharges();
+        render();
+      })
+      .catch(function(e){ toast("Kunde inte sätta gratis laddning: "+e.message,"err"); render(); });
   });
   $("forcePollBtn").addEventListener("click", function(){
     withBusy(haCall("button","press",{entity_id:E.forcePoll}))
@@ -1068,6 +1088,7 @@
     if(monthOdo.month !== (now.getFullYear()+"-"+(now.getMonth()+1))){ el.textContent = "--"; return; }
     var cost = 0;
     chargesCache.forEach(function(c){
+      if(c.free) return; // free public charger: no spot cost, no grid fee/tax either
       var d = new Date(c.endedAt || c.startedAt || 0);
       if(d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()){
         cost += ((c.cost || 0) + (c.energyKwh || 0) * SURCHARGE_PER_KWH) * TAX_FACTOR;
@@ -1102,8 +1123,8 @@
           "<td>"+(durMs!==null ? fmtDur(durMs) : "--")+"</td>"+
           "<td>"+(c.energyKwh!=null ? c.energyKwh.toFixed(1)+" kWh" : "--")+"</td>"+
           "<td>"+(avgKw!==null ? avgKw.toFixed(1)+" kW" : "--")+"</td>"+
-          "<td>"+(avgPrice!==null ? avgPrice.toFixed(2)+" kr/kWh" : "--")+"</td>"+
-          '<td class="cost">'+(c.cost!=null ? c.cost.toFixed(2)+" kr" : "--")+"</td>"+
+          "<td>"+(c.free ? "gratis" : (avgPrice!==null ? avgPrice.toFixed(2)+" kr/kWh" : "--"))+"</td>"+
+          '<td class="cost">'+(c.free ? "0 kr" : (c.cost!=null ? c.cost.toFixed(2)+" kr" : "--"))+"</td>"+
         "</tr>";
       }).join("");
     }).catch(function(e){
