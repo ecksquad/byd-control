@@ -207,25 +207,21 @@
   .climate-duration{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
     padding:8px 10px;font-size:13.5px;font-family:inherit}
 
-  .batt-row{display:flex;align-items:center;gap:18px}
-  .batt-ring-wrap{position:relative;width:118px;height:118px;flex:none}
-  .batt-ring{
-    position:absolute;inset:0;border-radius:50%;--p:0;--ring-col:var(--faint);
-    background:conic-gradient(from -90deg, var(--ring-col) calc(var(--p) * 1%), color-mix(in srgb, var(--ring-col) 14%, transparent) 0);
-    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px));
-    mask:radial-gradient(farthest-side,transparent calc(100% - 12px),#000 calc(100% - 11px));
-    transition:--p 900ms cubic-bezier(.22,.8,.2,1), background-color .4s ease;
-    filter:drop-shadow(0 0 9px color-mix(in srgb, var(--ring-col) 50%, transparent));
-  }
-  .batt-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    font-variant-numeric:tabular-nums}
-  .batt-pct{font-size:28px;font-weight:750;transition:color .3s ease}
-  .batt-bolt{font-size:15px;margin-bottom:2px;animation:boltPulse 1.4s ease-in-out infinite}
+  .batt-hero{display:flex;flex-direction:column;gap:10px}
+  .batt-topline{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .batt-pct{font-size:30px;font-weight:750;font-variant-numeric:tabular-nums;transition:color .3s ease}
+  .batt-bolt{font-size:16px;margin-right:5px;animation:boltPulse 1.4s ease-in-out infinite;display:inline-block}
   @keyframes boltPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.18)}}
-  .batt-meta{display:flex;flex-direction:column;gap:6px}
-  .batt-meta .range{font-size:26px;font-weight:750;font-variant-numeric:tabular-nums}
-  .batt-meta .range small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
-  .batt-meta .sub{font-size:12.5px;color:var(--muted)}
+  .batt-topline .sub{font-size:12.5px;color:var(--muted)}
+  .batt-bar{height:8px;border-radius:99px;background:color-mix(in srgb, var(--muted) 18%, transparent);overflow:hidden}
+  .batt-bar i{display:block;height:100%;border-radius:99px;width:0;
+    transition:width .9s cubic-bezier(.22,.8,.2,1), background-color .4s ease;
+    box-shadow:0 0 9px color-mix(in srgb, currentColor 55%, transparent)}
+  .car-img{width:100%;max-width:300px;margin:4px auto 0;display:block;
+    filter:drop-shadow(0 12px 20px rgba(0,0,0,.45))}
+  .car-stats{display:flex;justify-content:center;gap:30px;flex-wrap:wrap}
+  .car-stats .range{font-size:24px;font-weight:750;font-variant-numeric:tabular-nums}
+  .car-stats .range small{font-size:12.5px;font-weight:500;color:var(--muted);margin-left:3px}
 
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);
@@ -375,17 +371,16 @@
   <div class="grid">
     <div class="card c-battery">
       <h2>Battery</h2>
-      <div class="batt-row">
-        <div class="batt-ring-wrap">
-          <div class="batt-ring" id="battRing"></div>
-          <div class="batt-face">
-            <div class="batt-bolt" id="battBolt" style="display:none">&#9889;</div>
-            <div class="batt-pct" id="battPct">--%</div>
-          </div>
+      <div class="batt-hero">
+        <div class="batt-topline">
+          <span class="batt-pct" id="battPctWrap"><span class="batt-bolt" id="battBolt" style="display:none">&#9889;</span><span id="battPct">--%</span></span>
+          <span class="sub" id="chargeSub">—</span>
         </div>
-        <div class="batt-meta">
+        <div class="batt-bar"><i id="battFill"></i></div>
+        <img src="atto3.webp" alt="BYD Atto 3" class="car-img">
+        <div class="car-stats">
           <div class="range"><span id="rangeVal">--</span> <small>km range</small></div>
-          <div class="sub" id="chargeSub">—</div>
+          <div class="range"><span id="kmPrice">--</span> <small>kr / 100 km</small></div>
         </div>
       </div>
     </div>
@@ -791,15 +786,16 @@
       staleB.classList.remove("show");
     }
 
-    // battery ring - animated via CSS custom properties (--p, --ring-col)
+    // battery bar over the car photo
     var battery = num(state[E.battery]);
     var pct = battery!==null ? Math.max(0,Math.min(100,battery)) : null;
     var col = battColor(pct);
-    var ring = $("battRing");
-    ring.style.setProperty("--p", pct!==null ? pct : 0);
-    ring.style.setProperty("--ring-col", col);
+    var fill = $("battFill");
+    fill.style.width = (pct!==null ? pct : 0)+"%";
+    fill.style.backgroundColor = col;
+    fill.style.color = col; // driver for the glow's currentColor
     animateNumber("battPct", pct, 0, "%");
-    $("battPct").style.color = col;
+    $("battPctWrap").style.color = col;
     var charging = on(state[E.charging]);
     $("battBolt").style.display = charging ? "" : "none";
 
@@ -808,6 +804,7 @@
     var plugged = on(state[E.plug]);
     var chargeSub = charging ? "Charging" : (plugged ? "Plugged in, idle" : "Not connected");
     $("chargeSub").textContent = chargeSub;
+    updateKmPrice(num(state[E.odometer]));
 
     // status chips
     var haLocked = state[E.locked] ? state[E.locked].state==="off" : null; // HA lock convention: on=unlocked
@@ -1058,13 +1055,41 @@
   function chargeMsgRow(text, bad){
     return '<tr><td class="msg" colspan="6"'+(bad?' style="color:var(--bad)"':'')+'>'+text+'</td></tr>';
   }
+  // ---- kr/100 km: monthly full cost (spot + grid fees + tax, same formula as the
+  //      mirror's EV dashboard) / km driven this month. Needs /charges + /lastcharge
+  //      from the control server plus the live odometer from HA. ----
+  var SURCHARGE_PER_KWH = 0.68, TAX_FACTOR = 1.25;
+  var chargesCache = null, monthOdo = null, lastOdo = null;
+  function updateKmPrice(odo){
+    if(odo !== null && odo !== undefined) lastOdo = odo;
+    var el = $("kmPrice");
+    if(!chargesCache || !monthOdo || lastOdo === null){ el.textContent = "--"; return; }
+    var now = new Date();
+    if(monthOdo.month !== (now.getFullYear()+"-"+(now.getMonth()+1))){ el.textContent = "--"; return; }
+    var cost = 0;
+    chargesCache.forEach(function(c){
+      var d = new Date(c.endedAt || c.startedAt || 0);
+      if(d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()){
+        cost += ((c.cost || 0) + (c.energyKwh || 0) * SURCHARGE_PER_KWH) * TAX_FACTOR;
+      }
+    });
+    var km = lastOdo - monthOdo.odoStart;
+    el.textContent = (km > 0 && cost > 0) ? String(Math.round(cost / km * 100)) : "--";
+  }
+
   function loadCharges(){
     var body = $("chargeRows");
     if(!cfg().controlKey){
       body.innerHTML = chargeMsgRow("Add the control server API key in settings (gear icon) to see charge history.");
       return;
     }
+    controlGet("/lastcharge").then(function(j){
+      monthOdo = (j.lastcharge && j.lastcharge.monthOdo) || null;
+      updateKmPrice(null);
+    }).catch(function(){});
     controlGet("/charges").then(function(j){
+      chargesCache = j.charges || [];
+      updateKmPrice(null);
       var list = (j.charges||[]).slice().reverse(); // newest first
       if(!list.length){ body.innerHTML = chargeMsgRow("No charges logged yet."); return; }
       body.innerHTML = list.map(function(c){
