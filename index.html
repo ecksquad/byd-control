@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0b1016">
 <title>ANNIKAS CAR</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Annikas car">
 <style>
   :root{
     --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
@@ -83,6 +91,15 @@
   .icon-btn:hover{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 45%, transparent);transform:translateY(-2px)}
   .icon-btn:active{transform:scale(.92)}
   .icon-btn.spin{animation:spin360 .6s ease}
+  .chip-btn{height:36px;border-radius:999px;border:1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    background:var(--accent-soft);color:var(--accent);padding:0 14px;font:inherit;font-size:13px;font-weight:650;
+    cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;
+    transition:transform .2s ease,background .2s ease}
+  .chip-btn:hover{transform:translateY(-2px)}
+  .chip-btn:active{transform:scale(.95)}
+  .install-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:var(--ink)}
+  .install-steps b{color:var(--accent)}
+  .install-lead{font-size:13px;color:var(--muted);margin:0 0 14px}
   @keyframes spin360{to{transform:rotate(360deg)}}
 
   .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;padding:4px 10px;
@@ -337,6 +354,7 @@
       <span class="pill offline" id="onlinePill"><span class="dot"></span><span>—</span></span>
     </div>
     <div class="h-actions">
+      <button class="chip-btn" id="installBtn" hidden>&#128241; Spara</button>
       <button class="icon-btn" id="refreshBtn" title="Refresh now">&#8635;</button>
       <button class="icon-btn" id="settingsBtn" title="Settings">&#9881;</button>
     </div>
@@ -541,6 +559,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-veil" id="installVeil">
+  <div class="modal">
+    <h3>Spara på hemskärmen</h3>
+    <p class="install-lead">Appen får en egen ikon och öppnas i helskärm – som en vanlig app, utan adressfält.</p>
+    <ol class="install-steps" id="installSteps"></ol>
+    <div class="row">
+      <button class="btn ghost" id="installClose">Stäng</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-veil" id="settingsVeil">
   <div class="modal">
@@ -1083,6 +1112,42 @@
     refresh();
     loadCharges();
   });
+
+  // ---- spara pa hemskarmen (PWA install) ----
+  var deferredInstall = null;
+  var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  if(!isStandalone) $("installBtn").hidden = false;
+
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault();
+    deferredInstall = e;
+    if(!isStandalone) $("installBtn").hidden = false;
+  });
+  window.addEventListener("appinstalled", function(){ $("installBtn").hidden = true; });
+
+  $("installBtn").addEventListener("click", function(){
+    if(deferredInstall){
+      deferredInstall.prompt();
+      deferredInstall.userChoice.then(function(r){
+        if(r.outcome === "accepted") $("installBtn").hidden = true;
+        deferredInstall = null;
+      });
+    }else{
+      var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      $("installSteps").innerHTML = isIOS
+        ? '<li>Öppna sidan i <b>Safari</b> (om du inte redan gjort det)</li>' +
+          '<li>Tryck på <b>dela-ikonen</b> <span style="font-size:16px">&#x2B06;&#xFE0E;</span> i verktygsfältet</li>' +
+          '<li>Välj <b>”Lägg till på hemskärmen”</b> och tryck <b>Lägg till</b></li>'
+        : '<li>Öppna webbläsarens meny <b>&#8942;</b></li>' +
+          '<li>Välj <b>”Lägg till på startskärmen”</b> eller <b>”Installera app”</b></li>';
+      $("installVeil").classList.add("show");
+    }
+  });
+  $("installClose").addEventListener("click", function(){ $("installVeil").classList.remove("show"); });
+
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  }
 
   // ---- entrance animation ----
   var cardEls = document.querySelectorAll(".card");
