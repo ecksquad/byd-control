@@ -307,6 +307,10 @@
   .elpris-top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
   .elpris-now-price{font-size:26px;font-weight:750;font-variant-numeric:tabular-nums}
   .elpris-now-sub{font-size:12.5px;color:var(--muted)}
+  .elpris-tip{display:none;align-items:center;gap:10px;background:var(--good-soft);color:var(--good);
+    border:1px solid color-mix(in srgb, var(--good) 35%, transparent);border-radius:12px;
+    padding:11px 14px;font-size:14px;font-weight:650;margin-bottom:16px}
+  .elpris-tip .ic{font-size:16px}
   .elpris-chart-wrap{width:100%;margin-bottom:16px}
   .elpris-chart-wrap svg{width:100%;height:auto;display:block;overflow:visible}
   .elpris-fill{display:flex;flex-direction:column;gap:0}
@@ -484,12 +488,12 @@
 
     <div class="card c-elpris">
       <h2>Elpris</h2>
+      <div class="elpris-tip" id="elprisTip"><span class="ic">&#9203;</span><span id="elprisTipText"></span></div>
       <div class="elpris-top">
         <div>
           <span class="elpris-now-price" id="elprisNowPrice">-- kr/kWh</span>
           <div class="elpris-now-sub">right now (spot price)</div>
         </div>
-        <div class="elpris-now-sub" id="elprisCheapestSub">—</div>
       </div>
       <div class="elpris-chart-wrap" id="elprisChartWrap"></div>
       <div class="elpris-fill">
@@ -1229,12 +1233,13 @@
 
   function renderElpris(){
     var wrap = $("elprisChartWrap");
+    var tip = $("elprisTip");
     if(!elprisData || elprisData.currentPrice === null || elprisData.currentPrice === undefined){
       $("elprisNowPrice").textContent = "--";
-      $("elprisCheapestSub").textContent = "";
       $("fillNowVal").textContent = "--";
       $("fillCheapestWhen").textContent = "--";
       $("fillCheapestVal").textContent = "--";
+      tip.style.display = "none";
       if(wrap) wrap.innerHTML = "";
       return;
     }
@@ -1249,13 +1254,19 @@
     if(cu){
       var when = (cu.day==="tomorrow"?"tomorrow ":"")+(cu.hour<10?"0":"")+cu.hour+":00";
       var costCheap = kwhNeeded!==null ? kwhNeeded*fullPrice(cu.price) : null;
-      $("elprisCheapestSub").textContent = "cheapest upcoming: "+cu.price.toFixed(2)+" kr/kWh at "+when;
       $("fillCheapestWhen").textContent = when;
       $("fillCheapestVal").textContent = costCheap!==null ? Math.round(costCheap)+" kr" : "--";
+      var savings = (costNow!==null && costCheap!==null) ? Math.round(costNow - costCheap) : null;
+      if(savings !== null && savings >= 1){
+        $("elprisTipText").textContent = "Wait until "+when+" to save "+savings+" kr on filling the battery.";
+        tip.style.display = "flex";
+      } else {
+        tip.style.display = "none";
+      }
     } else {
-      $("elprisCheapestSub").textContent = "now is the cheapest it gets in the forecast";
       $("fillCheapestWhen").textContent = "now";
       $("fillCheapestVal").textContent = costNow!==null ? Math.round(costNow)+" kr" : "--";
+      tip.style.display = "none";
     }
 
     if(wrap) wrap.innerHTML = elprisChartSvg();
