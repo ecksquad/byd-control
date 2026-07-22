@@ -651,6 +651,29 @@
   }
   function saveCfg(c){ localStorage.setItem("carctrl_cfg", JSON.stringify(c)); }
 
+  // One-tap setup: a link like ?setup=1&haUrl=...&haToken=...&controlUrl=...
+  // &controlKey=... saves those values to THIS browser's localStorage and
+  // is then immediately stripped from the address bar/history via
+  // replaceState, so the credentials don't linger anywhere visible after
+  // the first load. Lets a new person (e.g. a family member) get fully
+  // configured by opening one link instead of typing 4 fields by hand -
+  // they still need to actually be reachable (Tailscale) and hold a valid
+  // token/key, this just removes the manual copy-paste step.
+  (function applySetupLink(){
+    var params = new URLSearchParams(location.search);
+    if(!params.has("setup")) return;
+    var c = {
+      haUrl: params.get("haUrl") || DEFAULTS.haUrl,
+      haToken: params.get("haToken") || "",
+      controlUrl: params.get("controlUrl") || DEFAULTS.controlUrl,
+      controlKey: params.get("controlKey") || ""
+    };
+    if(c.haToken && c.controlKey){
+      saveCfg(c);
+      history.replaceState(null, "", location.pathname);
+    }
+  })();
+
   function controlCall(path, body){
     var c = cfg();
     return fetch(c.controlUrl.replace(/\/+$/,"")+path, {
