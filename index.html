@@ -161,11 +161,10 @@
   .c-climate{grid-column:span 7}
   .c-windows{grid-column:span 6}
   .c-comfort{grid-column:span 6}
-  .c-elpris{grid-column:span 12}
   .c-history{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
-    .c-windows,.c-comfort,.c-elpris,.c-history{grid-column:span 12}
+    .c-windows,.c-comfort,.c-history{grid-column:span 12}
   }
 
   .charge-table-wrap{overflow-x:auto}
@@ -304,22 +303,14 @@
   .util-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .util-row .d{font-size:12px;color:var(--muted);max-width:60%;text-align:right}
 
-  .elpris-top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
-  .elpris-now-price{font-size:26px;font-weight:750;font-variant-numeric:tabular-nums}
-  .elpris-now-sub{font-size:12.5px;color:var(--muted)}
+  .charge-price-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .charge-price-now{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}
+  .charge-price-sub{font-size:12.5px;color:var(--muted)}
+  .charge-price-sub b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .elpris-tip{display:none;align-items:center;gap:10px;background:var(--good-soft);color:var(--good);
     border:1px solid color-mix(in srgb, var(--good) 35%, transparent);border-radius:12px;
-    padding:11px 14px;font-size:14px;font-weight:650;margin-bottom:16px}
+    padding:11px 14px;font-size:14px;font-weight:650;margin-bottom:14px}
   .elpris-tip .ic{font-size:16px}
-  .elpris-chart-wrap{width:100%;margin-bottom:16px}
-  .elpris-chart-wrap svg{width:100%;height:auto;display:block;overflow:visible}
-  .elpris-fill{display:flex;flex-direction:column;gap:0}
-  .elpris-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px dashed var(--line)}
-  .elpris-row:last-child{border-bottom:none}
-  .elpris-row .k{font-size:13px;color:var(--muted)}
-  .elpris-row .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
-  .elpris-row.cheap .v{color:var(--good)}
-  .elpris-note{font-size:11.5px;color:var(--faint);margin-top:10px}
 
   .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px) scale(.92);
     background:color-mix(in srgb, var(--panel) 88%, transparent);backdrop-filter:blur(16px) saturate(160%);
@@ -440,8 +431,16 @@
 
     <div class="card c-charge">
       <h2>Charging control</h2>
+
+      <div class="charge-price-row">
+        <span class="charge-price-now" id="cpNow">-- kr/kWh</span>
+        <span class="charge-price-sub">right now &middot; fill to 100%: <b id="cpFillNow">--</b></span>
+      </div>
+      <div class="elpris-tip" id="elprisTip"><span class="ic">&#9203;</span><span id="elprisTipText"></span></div>
+
+      <button class="btn primary" id="scheduleBestBtn" style="margin-bottom:12px">Start charging at the best time</button>
       <div class="btn-row" style="margin-bottom:14px">
-        <button class="btn primary" id="startChargeBtn">Start charging</button>
+        <button class="btn ghost" id="startChargeBtn">Start now</button>
         <button class="btn ghost" id="stopChargeBtn">Stop charging</button>
       </div>
 
@@ -484,24 +483,6 @@
           <span class="d">Pull latest charge/energy history</span>
         </div>
       </div>
-    </div>
-
-    <div class="card c-elpris">
-      <h2>Elpris</h2>
-      <div class="elpris-tip" id="elprisTip"><span class="ic">&#9203;</span><span id="elprisTipText"></span></div>
-      <div class="elpris-top">
-        <div>
-          <span class="elpris-now-price" id="elprisNowPrice">-- kr/kWh</span>
-          <div class="elpris-now-sub">right now (spot price)</div>
-        </div>
-      </div>
-      <div class="elpris-chart-wrap" id="elprisChartWrap"></div>
-      <div class="elpris-fill">
-        <div class="elpris-row"><span class="k">Fill to 100% right now</span><span class="v" id="fillNowVal">--</span></div>
-        <div class="elpris-row cheap"><span class="k">Fill to 100% at the cheapest upcoming hour (<span id="fillCheapestWhen">--</span>)</span><span class="v" id="fillCheapestVal">--</span></div>
-      </div>
-      <button class="btn primary" id="scheduleBestBtn" style="margin-top:16px">Start charging at the best time</button>
-      <div class="elpris-note">Based on current battery %, a 60 kWh pack, and SE3 spot price + grid fee/energiskatt (0.68 kr/kWh) + moms — same formula as the "kr/100 km" figure above. Estimate only; excludes charging losses. The button sizes a window to how much charging is actually needed (assumes ~7 kW) and picks its cheapest available slot — which can differ from the single cheapest hour shown above if prices climb right after it.</div>
     </div>
 
     <div class="card c-remote">
@@ -929,7 +910,7 @@
     var startEntity = state[E.startCharging];
     var startAvailable = startEntity && startEntity.state !== "unavailable";
     startBtn.disabled = busy || !startAvailable;
-    startBtn.textContent = !startAvailable ? "Start charging (unavailable)" : (busy ? "Working…" : "Start charging");
+    startBtn.textContent = !startAvailable ? "Start now (unavailable)" : (busy ? "Working…" : "Start now");
 
     $("forcePollBtn").disabled = busy;
     $("fetchEnergyBtn").disabled = busy;
@@ -1185,115 +1166,40 @@
     controlGet("/elpris").then(function(j){ elprisData = j; renderElpris(); }).catch(function(){});
   }
 
-  // Only hours still ahead of you: today from the current hour onward,
-  // then all of tomorrow if published - a "should I wait" view, not a
-  // full day-so-far history (that's what the mirror's page 1 is for).
-  function elprisUpcoming(){
-    var pts = [];
-    if(elprisData.today){
-      for(var h=elprisData.currentHour; h<24; h++){
-        pts.push({hour:h, day:"today", price:elprisData.today[h]});
-      }
-    }
-    if(elprisData.tomorrow){
-      for(var h2=0; h2<24; h2++){
-        pts.push({hour:h2, day:"tomorrow", price:elprisData.tomorrow[h2]});
-      }
-    }
-    return pts;
-  }
-
-  function elprisChartSvg(){
-    var pts = elprisUpcoming();
-    if(pts.length < 2) return "";
-    var W=1000, H=220, padL=6, padR=6, padT=14, padB=22;
-    var prices = pts.map(function(p){ return p.price; });
-    var minP = Math.min.apply(null, prices), maxP = Math.max.apply(null, prices);
-    if(maxP === minP) maxP = minP + 0.01;
-    var x = function(i){ return padL + i/(pts.length-1)*(W-padL-padR); };
-    var y = function(v){ return H-padB - (v-minP)/(maxP-minP)*(H-padT-padB); };
-
-    var cheapIdx = 0;
-    for(var i=1;i<pts.length;i++){ if(pts[i].price < pts[cheapIdx].price) cheapIdx = i; }
-
-    var line = pts.map(function(p,i){ return (i===0?"M":"L")+x(i).toFixed(1)+","+y(p.price).toFixed(1); }).join(" ");
-    var area = line+" L"+x(pts.length-1).toFixed(1)+","+(H-padB)+" L"+x(0).toFixed(1)+","+(H-padB)+" Z";
-
-    // day-boundary tick + a few hour labels for orientation, kept sparse
-    var ticks = "";
-    for(var j=0;j<pts.length;j++){
-      if(pts[j].hour===0 && j>0){
-        ticks += '<line x1="'+x(j).toFixed(1)+'" y1="'+padT+'" x2="'+x(j).toFixed(1)+'" y2="'+(H-padB)+'" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>';
-      }
-      if(pts[j].hour%6===0){
-        ticks += '<text x="'+x(j).toFixed(1)+'" y="'+(H-6)+'" font-size="10" fill="var(--faint)" text-anchor="middle">'+
-          (pts[j].hour<10?"0":"")+pts[j].hour+"</text>";
-      }
-    }
-
-    // invisible larger hit targets + native <title> tooltips per point -
-    // a hover layer without any custom JS tooltip state
-    var hitTargets = pts.map(function(p,i){
-      var label = (p.day==="tomorrow"?"tomorrow ":"")+(p.hour<10?"0":"")+p.hour+":00 — "+p.price.toFixed(2)+" kr/kWh spot ("+fullPrice(p.price).toFixed(2)+" incl. fees+tax)";
-      return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.price).toFixed(1)+'" r="10" fill="transparent"><title>'+label+'</title></circle>';
-    }).join("");
-
-    var nowLabel = "Nu";
-    var cheapLabel = (pts[cheapIdx].day==="tomorrow"?"imorgon ":"")+(pts[cheapIdx].hour<10?"0":"")+pts[cheapIdx].hour+":00";
-    var marks =
-      '<circle cx="'+x(0).toFixed(1)+'" cy="'+y(pts[0].price).toFixed(1)+'" r="4" fill="var(--accent)"/>'+
-      '<text x="'+x(0).toFixed(1)+'" y="'+(y(pts[0].price)-10).toFixed(1)+'" font-size="11" fill="var(--muted)" text-anchor="start">'+nowLabel+'</text>'+
-      (cheapIdx>0 ?
-        '<circle cx="'+x(cheapIdx).toFixed(1)+'" cy="'+y(pts[cheapIdx].price).toFixed(1)+'" r="4" fill="var(--good)"/>'+
-        '<text x="'+x(cheapIdx).toFixed(1)+'" y="'+(y(pts[cheapIdx].price)-10).toFixed(1)+'" font-size="11" fill="var(--good)" text-anchor="middle">'+cheapLabel+'</text>'
-        : '');
-
-    return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Electricity price from now through '+pts[pts.length-1].day+'">'+
-      '<path d="'+area+'" fill="color-mix(in srgb, var(--accent) 20%, transparent)"/>'+
-      '<path d="'+line+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>'+
-      ticks + hitTargets + marks +
-    '</svg>';
-  }
-
+  // Compact by design: lives inside Charging control now, right above the
+  // action buttons it informs. Just the current price + one fill-cost
+  // number + a plain-language tip when waiting actually pays off - the
+  // detailed chart and the redundant "cheapest hour" row were cut in favor
+  // of one line you can read in a glance.
   function renderElpris(){
-    var wrap = $("elprisChartWrap");
     var tip = $("elprisTip");
     if(!elprisData || elprisData.currentPrice === null || elprisData.currentPrice === undefined){
-      $("elprisNowPrice").textContent = "--";
-      $("fillNowVal").textContent = "--";
-      $("fillCheapestWhen").textContent = "--";
-      $("fillCheapestVal").textContent = "--";
+      $("cpNow").textContent = "--";
+      $("cpFillNow").textContent = "--";
       tip.style.display = "none";
-      if(wrap) wrap.innerHTML = "";
       return;
     }
-    $("elprisNowPrice").textContent = elprisData.currentPrice.toFixed(2)+" kr/kWh";
+    $("cpNow").textContent = elprisData.currentPrice.toFixed(2)+" kr/kWh";
 
     var battery = num(state[E.battery]);
     var kwhNeeded = battery!==null ? Math.max(0, (100-battery)/100*PACK_KWH) : null;
     var costNow = kwhNeeded!==null ? kwhNeeded*fullPrice(elprisData.currentPrice) : null;
-    $("fillNowVal").textContent = costNow!==null ? Math.round(costNow)+" kr" : "--";
+    $("cpFillNow").textContent = costNow!==null ? Math.round(costNow)+" kr" : "--";
 
     var cu = elprisData.cheapestUpcoming;
     if(cu){
       var when = (cu.day==="tomorrow"?"tomorrow ":"")+(cu.hour<10?"0":"")+cu.hour+":00";
       var costCheap = kwhNeeded!==null ? kwhNeeded*fullPrice(cu.price) : null;
-      $("fillCheapestWhen").textContent = when;
-      $("fillCheapestVal").textContent = costCheap!==null ? Math.round(costCheap)+" kr" : "--";
       var savings = (costNow!==null && costCheap!==null) ? Math.round(costNow - costCheap) : null;
       if(savings !== null && savings >= 1){
-        $("elprisTipText").textContent = "Wait until "+when+" to save "+savings+" kr on filling the battery.";
+        $("elprisTipText").textContent = "Wait until "+when+" to save "+savings+" kr.";
         tip.style.display = "flex";
       } else {
         tip.style.display = "none";
       }
     } else {
-      $("fillCheapestWhen").textContent = "now";
-      $("fillCheapestVal").textContent = costNow!==null ? Math.round(costNow)+" kr" : "--";
       tip.style.display = "none";
     }
-
-    if(wrap) wrap.innerHTML = elprisChartSvg();
   }
   var chargesCache = null, monthOdo = null, lastOdo = null;
   function updateKmPrice(odo){
