@@ -422,7 +422,10 @@
 
     <div class="card c-charge">
       <h2>Charging control</h2>
-      <button class="btn primary" id="startChargeBtn" style="margin-bottom:14px">Start charging</button>
+      <div class="btn-row" style="margin-bottom:14px">
+        <button class="btn primary" id="startChargeBtn">Start charging</button>
+        <button class="btn ghost" id="stopChargeBtn">Stop charging</button>
+      </div>
 
       <div class="util-row" style="margin-bottom:14px">
         <button class="btn ghost small" id="freeChargeBtn">&#127381; Gratis laddning</button>
@@ -905,6 +908,14 @@
     withBusy(haCall("button","press",{entity_id:E.startCharging}))
       .then(function(){ toast("Charging started","ok"); return refresh(); })
       .catch(function(){ toast("Couldn't start charging","err"); render(); });
+  });
+  // BYD's cloud has no working stop-charge command (confirmed no-op) - this
+  // goes through the control server instead, which does two remote unlocks
+  // a couple seconds apart to trigger the same interlock a physical
+  // key-fob/door-handle double-unlock uses. Takes ~20s (BYD cloud round
+  // trip x2); the button/toast timing is the same shape as lock/unlock.
+  $("stopChargeBtn").addEventListener("click", function(){
+    controlAction(this, "/charging/stop", {}, "Stop charging");
   });
   // free public charger: zero the running session (logs 0 kr when it ends)
   // or, if nothing is charging, the last completed charge - then refresh the
