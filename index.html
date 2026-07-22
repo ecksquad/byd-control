@@ -14,23 +14,23 @@
 <meta name="apple-mobile-web-app-title" content="Annikas car">
 <style>
   :root{
-    --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
-    --line:#22303f; --accent:#37b6e0; --accent-soft:rgba(55,182,224,.14); --accent-ink:#02202b;
+    --bg:#040608; --panel:#10151b; --panel2:#0a0e13; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
+    --line:#1b232b; --accent:#33e0c2; --accent-soft:rgba(51,224,194,.14); --accent-ink:#022420;
     --good:#35c37a; --good-soft:rgba(53,195,122,.15); --warn:#f0a83f; --warn-soft:rgba(240,168,63,.15);
     --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
   }
   @media (prefers-color-scheme:light){
     :root{ --bg:#eef2f5; --panel:#ffffff; --panel2:#f4f7f9; --ink:#101820; --muted:#5b6b78; --faint:#8b98a3;
-      --line:#dde4ea; --accent:#0d84ab; --accent-soft:#e2f3fa; --accent-ink:#ffffff;
+      --line:#dde4ea; --accent:#0e9c86; --accent-soft:#e1f5f1; --accent-ink:#ffffff;
       --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
       --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
   }
-  :root[data-theme="dark"]{ --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
-    --line:#22303f; --accent:#37b6e0; --accent-soft:rgba(55,182,224,.14); --accent-ink:#02202b;
+  :root[data-theme="dark"]{ --bg:#040608; --panel:#10151b; --panel2:#0a0e13; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
+    --line:#1b232b; --accent:#33e0c2; --accent-soft:rgba(51,224,194,.14); --accent-ink:#022420;
     --good:#35c37a; --good-soft:rgba(53,195,122,.15); --warn:#f0a83f; --warn-soft:rgba(240,168,63,.15);
     --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); }
   :root[data-theme="light"]{ --bg:#eef2f5; --panel:#ffffff; --panel2:#f4f7f9; --ink:#101820; --muted:#5b6b78; --faint:#8b98a3;
-    --line:#dde4ea; --accent:#0d84ab; --accent-soft:#e2f3fa; --accent-ink:#ffffff;
+    --line:#dde4ea; --accent:#0e9c86; --accent-soft:#e1f5f1; --accent-ink:#ffffff;
     --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
     --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
 
@@ -52,14 +52,17 @@
   a:focus-visible, button:focus-visible, input:focus-visible{
     outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 
-  /* ambient drifting background */
+  /* ambient drifting background - kept subtle and pushed toward the
+     corners/edges (away from the header title and the card column) so it
+     reads as soft atmosphere behind the page, never as reduced contrast
+     behind text. Opacity + blur tuned down from the original for that. */
   body::before{
     content:"";position:fixed;inset:-20%;z-index:0;pointer-events:none;
     background:
-      radial-gradient(38% 32% at 18% 22%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%),
-      radial-gradient(34% 30% at 84% 78%, color-mix(in srgb, var(--good) 15%, transparent), transparent 70%),
-      radial-gradient(28% 26% at 78% 10%, color-mix(in srgb, var(--warn) 11%, transparent), transparent 70%);
-    filter:blur(70px) saturate(140%);
+      radial-gradient(34% 28% at 6% 4%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%),
+      radial-gradient(30% 26% at 92% 88%, color-mix(in srgb, var(--good) 10%, transparent), transparent 72%),
+      radial-gradient(26% 22% at 90% 6%, color-mix(in srgb, var(--warn) 8%, transparent), transparent 72%);
+    filter:blur(90px) saturate(130%);
     animation:driftBg 26s ease-in-out infinite alternate;
   }
   @keyframes driftBg{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-4%,5%) scale(1.1)}}
@@ -128,7 +131,7 @@
 
   .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
   .card{
-    background:color-mix(in srgb, var(--panel) 74%, transparent);
+    background:color-mix(in srgb, var(--panel) 92%, transparent);
     backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
     border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
     border-radius:18px;box-shadow:var(--shadow);padding:18px;
