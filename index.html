@@ -358,7 +358,7 @@
 
   <div class="err-banner" id="setupBanner">
     <b>Set up your connection</b>
-    <span>Click the gear icon (top right) and paste in your Home Assistant URL/token and control server URL/key. They're saved only in this browser, never sent anywhere else.</span>
+    <span>Click the gear icon (top right) and paste in your control server URL/key. Saved only in this browser, never sent anywhere else.</span>
   </div>
   <div class="err-banner" id="errBanner">
     <b>Can't reach Home Assistant</b>
@@ -558,7 +558,7 @@
     </div>
   </div>
 
-  <footer>Polls Home Assistant every 20s &middot; lock/unlock/climate call BYD's cloud directly</footer>
+  <footer>Polls every 20s through the control server &middot; lock/unlock/climate call BYD's cloud directly</footer>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -577,14 +577,10 @@
 <div class="modal-veil" id="settingsVeil">
   <div class="modal">
     <h3>Connection settings</h3>
-    <label>Home Assistant URL</label>
-    <input id="cfgUrl" placeholder="https://your-ha.example.ts.net">
-    <label>Long-lived access token</label>
-    <input id="cfgToken" placeholder="eyJ...">
     <label>Control server URL</label>
     <input id="cfgControlUrl" placeholder="https://your-control-server.ts.net">
     <label>Control server API key</label>
-    <input id="cfgControlKey" placeholder="for lock/unlock/climate">
+    <input id="cfgControlKey" placeholder="your key">
     <div class="row">
       <button class="btn ghost" id="cfgCancel">Cancel</button>
       <button class="btn primary" id="cfgSave">Save</button>
@@ -596,14 +592,17 @@
 (function(){
   "use strict";
 
-  // No token baked in on purpose - this file is public (GitHub Pages). The
-  // URL alone isn't sensitive (it's a Tailscale hostname, useless without
-  // being on that tailnet + a valid token), so it's fine as a convenience
-  // default; the token itself must be entered via the gear icon and lives
-  // only in this browser's localStorage, same pattern as reflekt's haToken.
+  // No key baked in on purpose - this file is public (GitHub Pages). The
+  // URL alone isn't sensitive, so it's fine as a convenience default; the
+  // key itself must be entered via the gear icon and lives only in this
+  // browser's localStorage. Home Assistant is no longer talked to directly
+  // from the browser - every ha* call below goes through the control
+  // server's /ha/<path> proxy instead (see server.py's ha_proxy), which
+  // authenticates to HA with its OWN stored token. That means: (1) only
+  // this one control server needs to be reachable/Funneled for the whole
+  // app to work from anywhere, Home Assistant itself stays tailnet-only
+  // either way, and (2) there's only one credential to configure.
   var DEFAULTS = {
-    haUrl: "https://homeassistant.tail655aa9.ts.net",
-    haToken: "",
     controlUrl: "https://magicmirroros.tail655aa9.ts.net",
     controlKey: ""
   };
@@ -643,32 +642,28 @@
     var stored = null;
     try{ stored = JSON.parse(localStorage.getItem("carctrl_cfg")||"null"); }catch(e){}
     return {
-      haUrl: (stored && stored.haUrl) || DEFAULTS.haUrl,
-      haToken: (stored && stored.haToken) || DEFAULTS.haToken,
       controlUrl: (stored && stored.controlUrl) || DEFAULTS.controlUrl,
       controlKey: (stored && stored.controlKey) || DEFAULTS.controlKey
     };
   }
   function saveCfg(c){ localStorage.setItem("carctrl_cfg", JSON.stringify(c)); }
 
-  // One-tap setup: a link like ?setup=1&haUrl=...&haToken=...&controlUrl=...
-  // &controlKey=... saves those values to THIS browser's localStorage and
-  // is then immediately stripped from the address bar/history via
-  // replaceState, so the credentials don't linger anywhere visible after
-  // the first load. Lets a new person (e.g. a family member) get fully
-  // configured by opening one link instead of typing 4 fields by hand -
-  // they still need to actually be reachable (Tailscale) and hold a valid
-  // token/key, this just removes the manual copy-paste step.
+  // One-tap setup: a link like ?setup=1&controlUrl=...&controlKey=... saves
+  // those values to THIS browser's localStorage and is then immediately
+  // stripped from the address bar/history via replaceState, so the key
+  // doesn't linger anywhere visible after the first load. Lets a new
+  // person (e.g. a family member) get fully configured by opening one
+  // link instead of typing fields by hand - they still need to actually
+  // be reachable (Tailscale, or the public Funnel URL if set up) and hold
+  // a valid key, this just removes the manual copy-paste step.
   (function applySetupLink(){
     var params = new URLSearchParams(location.search);
     if(!params.has("setup")) return;
     var c = {
-      haUrl: params.get("haUrl") || DEFAULTS.haUrl,
-      haToken: params.get("haToken") || "",
       controlUrl: params.get("controlUrl") || DEFAULTS.controlUrl,
       controlKey: params.get("controlKey") || ""
     };
-    if(c.haToken && c.controlKey){
+    if(c.controlKey){
       saveCfg(c);
       history.replaceState(null, "", location.pathname);
     }
@@ -700,17 +695,20 @@
     });
   }
 
+  // Both of these go through the control server's /ha/<path> proxy (see
+  // server.py's ha_proxy) rather than calling Home Assistant directly -
+  // it holds its own HA token, so the browser never needs one.
   function haGet(entity){
     var c = cfg();
-    return fetch(c.haUrl.replace(/\/+$/,"")+"/api/states/"+encodeURIComponent(entity), {
-      headers:{ "Authorization":"Bearer "+c.haToken, "Content-Type":"application/json" }
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/states/"+encodeURIComponent(entity), {
+      headers:{ "X-Api-Key": c.controlKey }
     }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); });
   }
   function haCall(domain, service, data){
     var c = cfg();
-    return fetch(c.haUrl.replace(/\/+$/,"")+"/api/services/"+domain+"/"+service, {
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/services/"+domain+"/"+service, {
       method:"POST",
-      headers:{ "Authorization":"Bearer "+c.haToken, "Content-Type":"application/json" },
+      headers:{ "X-Api-Key": c.controlKey, "Content-Type":"application/json" },
       body: JSON.stringify(data||{})
     }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json().catch(function(){return null;}); });
   }
@@ -796,7 +794,7 @@
   function render(){
     var errB=$("errBanner");
     if(!lastFetchOk){
-      $("errBannerText").textContent = "The last request failed — check the URL/token in settings, and that this page's origin is allowed in Home Assistant's cors_allowed_origins.";
+      $("errBannerText").textContent = "The last request failed — check the control server URL/key in settings, and that the control server is reachable from here.";
       errB.classList.add("show");
     } else {
       errB.classList.remove("show");
@@ -915,7 +913,7 @@
 
   var hasPromptedSetup = false;
   function refresh(){
-    if(!cfg().haToken){
+    if(!cfg().controlKey){
       $("setupBanner").classList.add("show");
       $("errBanner").classList.remove("show");
       $("staleBanner").classList.remove("show");
@@ -969,9 +967,9 @@
   var HA_ENTRY_ID = "01KWKQR5VT9H0BYKJW1EKNA681";
   function haReloadEntry(){
     var c = cfg();
-    return fetch(c.haUrl.replace(/\/+$/,"")+"/api/config/config_entries/entry/"+HA_ENTRY_ID+"/reload", {
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/config/config_entries/entry/"+HA_ENTRY_ID+"/reload", {
       method:"POST",
-      headers:{ "Authorization":"Bearer "+c.haToken }
+      headers:{ "X-Api-Key": c.controlKey }
     });
   }
   function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
@@ -1175,8 +1173,6 @@
   // ---- settings modal ----
   $("settingsBtn").addEventListener("click", function(){
     var c = cfg();
-    $("cfgUrl").value = c.haUrl;
-    $("cfgToken").value = c.haToken;
     $("cfgControlUrl").value = c.controlUrl;
     $("cfgControlKey").value = c.controlKey;
     $("settingsVeil").classList.add("show");
@@ -1184,7 +1180,6 @@
   $("cfgCancel").addEventListener("click", function(){ $("settingsVeil").classList.remove("show"); });
   $("cfgSave").addEventListener("click", function(){
     saveCfg({
-      haUrl: $("cfgUrl").value.trim(), haToken: $("cfgToken").value.trim(),
       controlUrl: $("cfgControlUrl").value.trim(), controlKey: $("cfgControlKey").value.trim()
     });
     $("settingsVeil").classList.remove("show");
