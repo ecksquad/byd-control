@@ -500,7 +500,8 @@
         <div class="elpris-row"><span class="k">Fill to 100% right now</span><span class="v" id="fillNowVal">--</span></div>
         <div class="elpris-row cheap"><span class="k">Fill to 100% at the cheapest upcoming hour (<span id="fillCheapestWhen">--</span>)</span><span class="v" id="fillCheapestVal">--</span></div>
       </div>
-      <div class="elpris-note">Based on current battery %, a 60 kWh pack, and SE3 spot price + grid fee/energiskatt (0.68 kr/kWh) + moms — same formula as the "kr/100 km" figure above. Estimate only; excludes charging losses.</div>
+      <button class="btn primary" id="scheduleBestBtn" style="margin-top:16px">Start charging at the best time</button>
+      <div class="elpris-note">Based on current battery %, a 60 kWh pack, and SE3 spot price + grid fee/energiskatt (0.68 kr/kWh) + moms — same formula as the "kr/100 km" figure above. Estimate only; excludes charging losses. The button sizes a window to how much charging is actually needed (assumes ~7 kW) and picks its cheapest available slot — which can differ from the single cheapest hour shown above if prices climb right after it.</div>
     </div>
 
     <div class="card c-remote">
@@ -965,7 +966,10 @@
   $("startChargeBtn").addEventListener("click", function(){
     withBusy(haCall("button","press",{entity_id:E.startCharging}))
       .then(function(){ toast("Charging started","ok"); return refresh(); })
-      .catch(function(){ toast("Couldn't start charging","err"); render(); });
+      // BYD's cloud is known to be intermittently flaky (documented
+      // elsewhere in this project) - surface the real reason so a retry
+      // decision doesn't need someone digging through server logs.
+      .catch(function(e){ toast("Couldn't start charging: "+e.message+" — try again","err"); render(); });
   });
   // BYD's cloud has no working stop-charge command (confirmed no-op) - this
   // goes through the control server instead, which does two remote unlocks
@@ -974,6 +978,26 @@
   // trip x2); the button/toast timing is the same shape as lock/unlock.
   $("stopChargeBtn").addEventListener("click", function(){
     controlAction(this, "/charging/stop", {}, "Stop charging");
+  });
+  // "Start charging at the best time": server works out hours needed from
+  // the live battery %, finds the cheapest still-to-come window of that
+  // length, and writes it as an enabled one-shot schedule - custom handler
+  // (not controlAction) so the toast can report the ACTUAL window chosen,
+  // which can differ from the single cheapest hour shown in the chart.
+  $("scheduleBestBtn").addEventListener("click", function(){
+    var btn = this, orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Finding the best time…";
+    var beforeTs = state[E.telemetryUpdated] ? state[E.telemetryUpdated].state : null;
+    withBusy(controlCall("/charging/schedule_best", {}))
+      .then(function(j){
+        var w = j.window;
+        var when = (w.day==="tomorrow"?"tomorrow ":"")+w.start+"–"+w.end;
+        toast("Scheduled "+when+" ("+w.avg.toFixed(2)+" kr/kWh avg)","ok");
+        backgroundSync(beforeTs);
+      })
+      .catch(function(e){ toast("Couldn't schedule charging: "+e.message,"err"); })
+      .finally(function(){ btn.disabled = false; btn.textContent = orig; });
   });
   // free public charger: zero the running session (logs 0 kr when it ends)
   // or, if nothing is charging, the last completed charge - then refresh the
