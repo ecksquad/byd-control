@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="theme-color" content="#040608">
+<meta name="theme-color" content="#0b1016">
 <title>ANNIKAS CAR</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -13,158 +13,296 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Annikas car">
 <style>
-  /* ---- tokens: true near-black ground (checked mostly at night/in the
-     car), one teal-cyan accent (electricity), semantic good/warn/bad kept
-     separate from the accent so state always reads distinctly from action ---- */
   :root{
-    --bg:#040608; --panel:#10151b; --panel2:#0a0e13; --ink:#f1f5f8; --muted:#8a95a2; --faint:#57626d;
-    --line:#1b232b; --accent:#33e0c2; --accent-soft:rgba(51,224,194,.14); --accent-ink:#022420;
+    --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
+    --line:#22303f; --accent:#37b6e0; --accent-soft:rgba(55,182,224,.14); --accent-ink:#02202b;
     --good:#35c37a; --good-soft:rgba(53,195,122,.15); --warn:#f0a83f; --warn-soft:rgba(240,168,63,.15);
-    --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 28px rgba(0,0,0,.5);
+    --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
   }
   @media (prefers-color-scheme:light){
-    :root{ --bg:#f3f5f6; --panel:#ffffff; --panel2:#f6f8f9; --ink:#0f1720; --muted:#5c6772; --faint:#8b969f;
-      --line:#e1e6ea; --accent:#0e9c86; --accent-soft:#e1f5f1; --accent-ink:#ffffff;
+    :root{ --bg:#eef2f5; --panel:#ffffff; --panel2:#f4f7f9; --ink:#101820; --muted:#5b6b78; --faint:#8b98a3;
+      --line:#dde4ea; --accent:#0d84ab; --accent-soft:#e2f3fa; --accent-ink:#ffffff;
       --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
-      --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 20px rgba(20,30,40,.06); }
+      --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
   }
-  :root[data-theme="dark"]{ --bg:#040608; --panel:#10151b; --panel2:#0a0e13; --ink:#f1f5f8; --muted:#8a95a2; --faint:#57626d;
-    --line:#1b232b; --accent:#33e0c2; --accent-soft:rgba(51,224,194,.14); --accent-ink:#022420;
+  :root[data-theme="dark"]{ --bg:#0b1016; --panel:#121a22; --panel2:#0e151b; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
+    --line:#22303f; --accent:#37b6e0; --accent-soft:rgba(55,182,224,.14); --accent-ink:#02202b;
     --good:#35c37a; --good-soft:rgba(53,195,122,.15); --warn:#f0a83f; --warn-soft:rgba(240,168,63,.15);
-    --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 28px rgba(0,0,0,.5); }
-  :root[data-theme="light"]{ --bg:#f3f5f6; --panel:#ffffff; --panel2:#f6f8f9; --ink:#0f1720; --muted:#5c6772; --faint:#8b969f;
-    --line:#e1e6ea; --accent:#0e9c86; --accent-soft:#e1f5f1; --accent-ink:#ffffff;
+    --bad:#ef5350; --bad-soft:rgba(239,83,80,.15); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35); }
+  :root[data-theme="light"]{ --bg:#eef2f5; --panel:#ffffff; --panel2:#f4f7f9; --ink:#101820; --muted:#5b6b78; --faint:#8b98a3;
+    --line:#dde4ea; --accent:#0d84ab; --accent-soft:#e2f3fa; --accent-ink:#ffffff;
     --good:#1f9c5d; --good-soft:#e3f7ec; --warn:#c67c14; --warn-soft:#fbedd9;
-    --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 20px rgba(20,30,40,.06); }
+    --bad:#d8433f; --bad-soft:#fbe4e3; --shadow:0 1px 2px rgba(20,30,40,.05),0 8px 24px rgba(20,30,40,.07); }
+
+  @property --p{ syntax:'<number>'; inherits:false; initial-value:0 }
 
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,"Segoe UI",Roboto,ui-sans-serif,system-ui,sans-serif;}
-  body{padding:18px 16px calc(88px + env(safe-area-inset-bottom));display:flex;justify-content:center;min-height:100vh}
-  .wrap{width:100%;max-width:640px}
+  body{padding:20px 16px 60px;display:flex;justify-content:center;position:relative;min-height:100vh;overflow-x:hidden}
+  .wrap{width:100%;max-width:920px;position:relative;z-index:1}
+
   ::selection{background:color-mix(in srgb, var(--accent) 35%, transparent);color:var(--ink)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--muted) 35%, transparent);border-radius:999px}
+  ::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb, var(--accent) 55%, transparent)}
+  html{scrollbar-width:thin;scrollbar-color:color-mix(in srgb, var(--muted) 35%, transparent) transparent}
 
   a:focus-visible, button:focus-visible, input:focus-visible{
     outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px}
+  /* ambient drifting background */
+  body::before{
+    content:"";position:fixed;inset:-20%;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(38% 32% at 18% 22%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%),
+      radial-gradient(34% 30% at 84% 78%, color-mix(in srgb, var(--good) 15%, transparent), transparent 70%),
+      radial-gradient(28% 26% at 78% 10%, color-mix(in srgb, var(--warn) 11%, transparent), transparent 70%);
+    filter:blur(70px) saturate(140%);
+    animation:driftBg 26s ease-in-out infinite alternate;
+  }
+  @keyframes driftBg{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-4%,5%) scale(1.1)}}
+
+  /* custom cursor glow (fine pointers only) */
+  #cursorGlow{position:fixed;top:0;left:0;width:28px;height:28px;border-radius:50%;
+    border:1.5px solid color-mix(in srgb, var(--accent) 65%, transparent);
+    background:color-mix(in srgb, var(--accent) 12%, transparent);
+    pointer-events:none;z-index:999;transform:translate(-50%,-50%);
+    transition:width .2s ease,height .2s ease,background .2s ease,opacity .2s ease;will-change:transform}
+  #cursorGlow.hover{width:50px;height:50px;background:color-mix(in srgb, var(--accent) 20%, transparent)}
+  #cursorGlow.click{width:20px;height:20px}
+  @media (pointer:coarse){#cursorGlow{display:none}}
+
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px}
+  .h-left{display:flex;align-items:center;gap:14px}
   .h-brand{display:flex;flex-direction:column}
-  .h-title{font-size:19px;font-weight:800;letter-spacing:.02em}
-  .h-model{font-size:11px;font-weight:650;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .h-title{font-size:clamp(22px,4.2vw,30px);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    line-height:1.05;background:linear-gradient(100deg, var(--ink) 35%, var(--accent) 130%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .h-title small{display:block;font-size:.36em;font-weight:650;letter-spacing:.32em;color:var(--muted);
+    -webkit-text-fill-color:var(--muted);margin-top:3px}
+  .h-sub{font-size:12px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
   .h-actions{display:flex;align-items:center;gap:8px}
   .icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
     color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;
-    transition:color .15s ease,border-color .15s ease}
-  .icon-btn:hover{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
-  .icon-btn.spin{animation:spin360 .5s ease}
+    position:relative;overflow:hidden;
+    transition:transform .2s ease,color .2s ease,border-color .2s ease,background .2s ease}
+  .icon-btn:hover{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 45%, transparent);transform:translateY(-2px)}
+  .icon-btn:active{transform:scale(.92)}
+  .icon-btn.spin{animation:spin360 .6s ease}
   .chip-btn{height:36px;border-radius:999px;border:1px solid color-mix(in srgb, var(--accent) 55%, transparent);
     background:var(--accent-soft);color:var(--accent);padding:0 14px;font:inherit;font-size:13px;font-weight:650;
-    cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+    cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;
+    transition:transform .2s ease,background .2s ease}
+  .chip-btn:hover{transform:translateY(-2px)}
+  .chip-btn:active{transform:scale(.95)}
+  .install-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:var(--ink)}
+  .install-steps b{color:var(--accent)}
+  .install-lead{font-size:13px;color:var(--muted);margin:0 0 14px}
   @keyframes spin360{to{transform:rotate(360deg)}}
 
-  /* ---- ticker: the one persistent "is everything fine" line, every tab ---- */
-  .ticker{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:650;color:var(--muted);
-    padding:10px 2px;margin-bottom:14px;border-bottom:1px solid var(--line)}
-  .ticker-dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--faint)}
-  .ticker-dot.ok{background:var(--good);box-shadow:0 0 0 3px var(--good-soft)}
-  .ticker-dot.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
-  .ticker span:last-child{color:var(--ink)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;padding:4px 10px;
+    border-radius:999px;letter-spacing:.02em}
+  .pill.online{background:var(--good-soft);color:var(--good)}
+  .pill.offline{background:var(--bad-soft);color:var(--bad)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.online .dot{animation:pulseDot 2s ease-in-out infinite}
+  @keyframes pulseDot{
+    0%{box-shadow:0 0 0 0 color-mix(in srgb, currentColor 55%, transparent)}
+    70%{box-shadow:0 0 0 7px transparent}
+    100%{box-shadow:0 0 0 0 transparent}
+  }
+
+  .stale-banner{display:none;align-items:center;gap:10px;background:var(--warn-soft);color:var(--warn);
+    border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);border-radius:12px;padding:10px 14px;
+    font-size:13px;font-weight:600;margin-bottom:16px}
+  .stale-banner.show{display:flex}
 
   .err-banner{display:none;background:var(--bad-soft);color:var(--bad);border:1px solid color-mix(in srgb, var(--bad) 35%, transparent);
-    border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:14px}
+    border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px}
   .err-banner.show{display:block}
   .err-banner b{display:block;margin-bottom:3px}
   #setupBanner{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
   #setupBanner b{color:var(--ink)}
-  .stale-banner{display:none;align-items:center;gap:10px;background:var(--warn-soft);color:var(--warn);
-    border:1px solid color-mix(in srgb, var(--warn) 35%, transparent);border-radius:12px;padding:10px 14px;
-    font-size:13px;font-weight:600;margin-bottom:14px}
-  .stale-banner.show{display:flex}
 
-  .page{display:flex;flex-direction:column;gap:14px}
-  .page[hidden]{display:none}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px}
-  .card h2{margin:0 0 14px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .card-split{display:flex;gap:10px}
-  .card-split > .card{flex:1;margin-bottom:0}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .card{
+    background:color-mix(in srgb, var(--panel) 74%, transparent);
+    backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+    border-radius:18px;box-shadow:var(--shadow);padding:18px;
+    position:relative;overflow:hidden;--mx:50%;--my:50%;
+    opacity:0;transform:translateY(16px);
+    transition:opacity .55s cubic-bezier(.16,.8,.24,1),transform .55s cubic-bezier(.16,.8,.24,1),
+      box-shadow .35s ease,border-color .35s ease;
+  }
+  .card.in{opacity:1;transform:translateY(0)}
+  .card.ready{transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .35s ease,border-color .35s ease}
+  .card::before{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s ease;z-index:0;
+    background:radial-gradient(240px circle at var(--mx) var(--my), color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%);
+  }
+  .card:hover::before{opacity:1}
+  .card:hover{border-color:color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow:0 22px 55px rgba(0,0,0,.35),0 2px 10px rgba(0,0,0,.2)}
+  .card > *{position:relative;z-index:1}
+  .card h2{margin:0 0 14px;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 
-  /* ---- hero (Home tab) ---- */
-  .hero{display:flex;flex-direction:column;gap:12px}
-  .hero-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-  .hero-pct{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-  .hero-pct .bolt{font-size:17px;margin-right:6px;display:inline-block}
-  .hero-sub{font-size:13px;color:var(--muted)}
-  .hero-bar{height:8px;border-radius:99px;background:color-mix(in srgb, var(--muted) 18%, transparent);overflow:hidden}
-  .hero-bar i{display:block;height:100%;border-radius:99px;width:0;
-    transition:width .9s cubic-bezier(.22,.8,.2,1), background-color .4s ease}
-  .hero-body{display:flex;align-items:center;gap:16px}
-  .hero-img{width:120px;flex:none}
-  .hero-stats{display:flex;flex-direction:column;gap:6px}
-  .hero-stats .row{display:flex;align-items:baseline;gap:6px}
-  .hero-stats .v{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}
-  .hero-stats .u{font-size:12px;color:var(--muted)}
+  /* overview */
+  .c-battery{grid-column:span 4}
+  .c-status{grid-column:span 8}
+  .c-vitals{grid-column:span 5}
+  .c-location{grid-column:span 4}
+  .c-tires{grid-column:span 3}
+  .c-charge{grid-column:span 7}
+  .c-util{grid-column:span 5}
+  .c-remote{grid-column:span 5}
+  .c-climate{grid-column:span 7}
+  .c-windows{grid-column:span 6}
+  .c-comfort{grid-column:span 6}
+  .c-history{grid-column:span 12}
+  @media (max-width:760px){
+    .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
+    .c-windows,.c-comfort,.c-history{grid-column:span 12}
+  }
 
-  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
-  .chip{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
-    border-radius:10px;padding:7px 10px;font-size:12px;font-weight:650}
-  .chip .ic{font-size:16px;line-height:1}
+  .charge-table-wrap{overflow-x:auto}
+  table.charge-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .charge-table th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);
+    text-align:right;padding:6px 10px;border-bottom:1px solid var(--line);font-weight:650;white-space:nowrap}
+  .charge-table th:first-child{text-align:left}
+  .charge-table td{font-size:13.5px;padding:9px 10px;border-bottom:1px dashed var(--line);
+    text-align:right;white-space:nowrap;font-weight:600}
+  .charge-table td:first-child{text-align:left}
+  .charge-table tr:last-child td{border-bottom:none}
+  .charge-table td.cost{font-weight:750;color:var(--accent)}
+  .charge-table td.msg{text-align:left;color:var(--muted);font-weight:500;white-space:normal}
+  .charge-note{font-size:11.5px;color:var(--faint);margin-top:10px}
+
+  .seat-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+  .seat-row:last-child{border-bottom:none}
+  .seat-row .t{font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .seg button{appearance:none;border:none;background:none;color:var(--muted);font-size:12px;font-weight:650;
+    padding:6px 12px;border-radius:7px;cursor:pointer;transition:background .15s ease,color .15s ease;font-family:inherit}
+  .seg button.active{background:var(--accent);color:var(--accent-ink)}
+  .seg button:hover:not(.active){color:var(--ink)}
+
+  .btn-row{display:flex;gap:10px}
+  .btn-row .btn{flex:1}
+  .btn.lock-btn{background:var(--good-soft);color:var(--good)}
+  .btn.lock-btn:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
+  .btn.unlock-btn{background:var(--warn-soft);color:var(--warn)}
+  .btn.unlock-btn:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
+
+  .climate-row{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .temp-stepper{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;padding:8px 14px}
+  .temp-stepper button{appearance:none;border:none;background:none;color:var(--accent);font-size:19px;font-weight:750;
+    cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:8px;
+    transition:background .15s ease}
+  .temp-stepper button:hover{background:color-mix(in srgb, var(--accent) 16%, transparent)}
+  .temp-stepper .val{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;min-width:52px;text-align:center}
+  .climate-duration{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+    padding:8px 10px;font-size:13.5px;font-family:inherit}
+
+  .batt-hero{display:flex;flex-direction:column;gap:10px}
+  .batt-topline{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .batt-pct{font-size:30px;font-weight:750;font-variant-numeric:tabular-nums;transition:color .3s ease}
+  .batt-bolt{font-size:16px;margin-right:5px;animation:boltPulse 1.4s ease-in-out infinite;display:inline-block}
+  @keyframes boltPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.18)}}
+  .batt-topline .sub{font-size:12.5px;color:var(--muted)}
+  .batt-bar{height:8px;border-radius:99px;background:color-mix(in srgb, var(--muted) 18%, transparent);overflow:hidden}
+  .batt-bar i{display:block;height:100%;border-radius:99px;width:0;
+    transition:width .9s cubic-bezier(.22,.8,.2,1), background-color .4s ease;
+    box-shadow:0 0 9px color-mix(in srgb, currentColor 55%, transparent)}
+  .car-img{width:100%;max-width:300px;margin:4px auto 0;display:block;
+    filter:drop-shadow(0 12px 20px rgba(0,0,0,.45))}
+  .car-stats{display:flex;justify-content:center;gap:30px;flex-wrap:wrap}
+  .car-stats .range{font-size:24px;font-weight:750;font-variant-numeric:tabular-nums}
+  .car-stats .range small{font-size:12.5px;font-weight:500;color:var(--muted);margin-left:3px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:11px;padding:9px 12px;font-size:12.5px;font-weight:600;min-width:0;
+    transition:transform .2s ease,border-color .2s ease}
+  .chip:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
+  .chip .ic{font-size:15px;line-height:1}
   .chip.ok{color:var(--good)}
   .chip.bad{color:var(--bad)}
   .chip.neutral{color:var(--muted)}
   .chip.warn{color:var(--warn)}
 
-  /* ---- car status (merged vitals+location+tires) ---- */
-  .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
-  .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .vitals-list{display:flex;flex-direction:column;gap:0}
+  .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--line);
+    transition:padding-left .2s ease}
+  .vrow:hover{padding-left:4px}
   .vrow:last-child{border-bottom:none}
-  .vrow .k{font-size:12.5px;color:var(--muted)}
-  .vrow .v{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
-  .loc-row{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-  .loc-state{font-size:15px;font-weight:700}
-  .loc-coords{font-family:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;font-size:12px;color:var(--muted);margin-top:2px}
-  .loc-age{font-size:11.5px;color:var(--faint);margin-top:2px}
-  .loc-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;
-    background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-    border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:650;text-decoration:none}
-  .tire-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-  .tire{text-align:center}
-  .tire .k{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;font-weight:650}
-  .tire .v{font-size:14.5px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
-  .tire.low .v{color:var(--warn)}
+  .vrow .k{font-size:13px;color:var(--muted)}
+  .vrow .v{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums}
 
-  /* ---- shared control primitives ---- */
+  .tire-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tire{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center;
+    transition:transform .2s ease,border-color .2s ease}
+  .tire:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
+  .tire .k{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em;font-weight:650}
+  .tire .v{font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+
+  .loc-row{display:flex;flex-direction:column;gap:8px}
+  .loc-state{font-size:16px;font-weight:700}
+  .loc-coords{font-family:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;font-size:12.5px;color:var(--muted)}
+  .loc-age{font-size:12px;color:var(--faint)}
+  .loc-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;
+    background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius:10px;padding:9px 12px;font-size:13px;font-weight:650;text-decoration:none;
+    transition:transform .2s ease,background .2s ease}
+  .loc-link:hover{transform:translateY(-2px);background:color-mix(in srgb, var(--accent) 24%, transparent)}
+
   .ctl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
   .ctl-row:last-child{border-bottom:none}
-  .ctl-label{display:flex;align-items:center;gap:6px}
+  .ctl-label{display:flex;flex-direction:column;gap:2px}
   .ctl-label .t{font-size:14px;font-weight:650}
-  .info-ic{width:15px;height:15px;border-radius:50%;background:var(--panel2);color:var(--faint);border:1px solid var(--line);
-    font-size:10px;font-style:normal;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex:none}
+  .ctl-label .d{font-size:12px;color:var(--muted)}
 
-  .switch{position:relative;width:44px;height:26px;flex:none;cursor:pointer}
+  .switch{position:relative;width:46px;height:27px;flex:none;cursor:pointer}
   .switch input{opacity:0;width:0;height:0;position:absolute}
-  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .2s ease}
-  .switch .knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;
-    box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .25s cubic-bezier(.34,1.4,.64,1)}
-  .switch input:checked + .track{background:var(--accent)}
-  .switch input:checked + .track + .knob{transform:translateX(18px)}
+  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .2s ease,box-shadow .2s ease}
+  .switch .knob{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .28s cubic-bezier(.34,1.4,.64,1),box-shadow .2s ease}
+  .switch input:checked + .track{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent)}
+  .switch input:checked + .track + .knob{transform:translateX(19px);box-shadow:0 1px 3px rgba(0,0,0,.35),0 0 8px color-mix(in srgb, var(--accent) 65%, transparent)}
   .switch.disabled{opacity:.4;pointer-events:none}
   .switch:focus-within .track{outline:2px solid var(--accent);outline-offset:2px}
 
-  .btn{appearance:none;border:none;border-radius:11px;padding:12px 16px;font-size:14px;font-weight:650;cursor:pointer;
-    display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit}
-  .btn.primary{background:var(--accent);color:var(--accent-ink);width:100%;transition:filter .15s ease}
-  .btn.primary:hover:not(:disabled){filter:brightness(1.1)}
+  .btn{appearance:none;border:none;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:650;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit;
+    position:relative;overflow:hidden}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);width:100%;
+    transition:transform .15s ease,box-shadow .25s ease,filter .2s ease}
+  .btn.primary:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 10px 26px color-mix(in srgb, var(--accent) 38%, transparent);transform:translateY(-1px)}
+  .btn.primary:active:not(:disabled){transform:scale(.99)}
   .btn.primary:disabled{background:var(--line);color:var(--faint);cursor:not-allowed}
-  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line);transition:border-color .15s ease}
-  .btn.ghost:hover:not(:disabled){border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
+  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    transition:transform .15s ease,border-color .2s ease,background .2s ease}
+  .btn.ghost:hover:not(:disabled){border-color:color-mix(in srgb, var(--accent) 45%, transparent);transform:translateY(-1px)}
   .btn.ghost:disabled{color:var(--faint);cursor:not-allowed}
-  .btn.small{padding:9px 12px;font-size:12.5px}
-  .btn.lock-btn{background:var(--good-soft);color:var(--good)}
-  .btn.unlock-btn{background:var(--warn-soft);color:var(--warn)}
-  .btn-row{display:flex;gap:10px}
-  .btn-row .btn{flex:1}
+  .btn.small{padding:8px 12px;font-size:12.5px}
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);
+    animation:rippleAnim .6s ease-out forwards;pointer-events:none}
+  @keyframes rippleAnim{to{transform:scale(1);opacity:0}}
 
-  /* ---- charging tab ---- */
+  .time-row{display:flex;align-items:center;gap:10px}
+  .time-row input[type=time]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+    padding:8px 9px;font-size:13.5px;font-family:inherit;font-variant-numeric:tabular-nums;transition:border-color .2s ease}
+  .time-row input[type=time]:hover{border-color:color-mix(in srgb, var(--accent) 40%, transparent)}
+  .schedule-window{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .schedule-window b{color:var(--ink)}
+
+  .util-grid{display:flex;flex-direction:column;gap:10px}
+  .util-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .util-row .d{font-size:12px;color:var(--muted);max-width:60%;text-align:right}
+
   .charge-price-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:10px}
   .charge-price-now{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}
   .charge-price-sub{font-size:12.5px;color:var(--muted)}
@@ -173,319 +311,272 @@
     border:1px solid color-mix(in srgb, var(--good) 35%, transparent);border-radius:12px;
     padding:11px 14px;font-size:14px;font-weight:650;margin-bottom:14px}
   .elpris-tip .ic{font-size:16px}
-  .util-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
-  .util-row .d{font-size:12px;color:var(--muted);max-width:58%;text-align:right}
-  .time-row{display:flex;align-items:center;gap:10px}
-  .time-row input[type=time]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
-    padding:8px 9px;font-size:13.5px;font-family:inherit;font-variant-numeric:tabular-nums}
-  .schedule-window{font-size:12.5px;color:var(--muted);margin-top:10px}
-  .schedule-window b{color:var(--ink);font-variant-numeric:tabular-nums}
 
-  /* ---- climate tab ---- */
-  .climate-row{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-  .temp-stepper{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);
-    border-radius:12px;padding:8px 14px}
-  .temp-stepper button{appearance:none;border:none;background:none;color:var(--accent);font-size:19px;font-weight:750;
-    cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:8px}
-  .temp-stepper .val{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;min-width:52px;text-align:center}
-  .climate-duration{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
-    padding:8px 10px;font-size:13.5px;font-family:inherit}
-  .seat-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
-  .seat-row:last-child{border-bottom:none}
-  .seat-row .t{font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px}
-  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
-  .seg button{appearance:none;border:none;background:none;color:var(--muted);font-size:12px;font-weight:650;
-    padding:6px 12px;border-radius:7px;cursor:pointer;font-family:inherit}
-  .seg button.active{background:var(--accent);color:var(--accent-ink)}
-
-  /* ---- more tab ---- */
-  .spark-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-  .spark-total{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}
-  .spark-total .u{font-size:12px;font-weight:600;color:var(--muted);margin-left:6px}
-  .spark-wrap svg{width:100%;height:44px;display:block}
-  .charge-table-wrap{overflow-x:auto;margin-top:14px}
-  table.charge-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-  .charge-table th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
-    text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:650;white-space:nowrap}
-  .charge-table th:first-child{text-align:left}
-  .charge-table td{font-size:12.5px;padding:8px;border-bottom:1px dashed var(--line);text-align:right;white-space:nowrap;font-weight:600}
-  .charge-table td:first-child{text-align:left}
-  .charge-table tr:last-child td{border-bottom:none}
-  .charge-table td.cost{font-weight:750;color:var(--accent)}
-  .charge-table td.msg{text-align:left;color:var(--muted);font-weight:500;white-space:normal}
-  .charge-note{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.5}
-
-  .toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);
-    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px) scale(.92);
+    background:color-mix(in srgb, var(--panel) 88%, transparent);backdrop-filter:blur(16px) saturate(160%);
+    -webkit-backdrop-filter:blur(16px) saturate(160%);
+    border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);color:var(--ink);
     padding:12px 20px;border-radius:13px;font-size:13.5px;font-weight:650;
-    box-shadow:var(--shadow);opacity:0;pointer-events:none;
-    transition:opacity .25s ease,transform .25s ease;z-index:70;max-width:90vw;text-align:center}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    box-shadow:0 20px 50px rgba(0,0,0,.4);opacity:0;pointer-events:none;
+    transition:opacity .3s ease,transform .3s cubic-bezier(.2,1.4,.4,1);z-index:70;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
   .toast.err{color:var(--bad)}
   .toast.ok{color:var(--good)}
 
-  .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  /* settings modal */
+  .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
   .modal-veil.show{display:flex}
-  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:400px;box-shadow:var(--shadow)}
+  .modal{background:color-mix(in srgb, var(--panel) 92%, transparent);backdrop-filter:blur(20px);border:1px solid var(--line);
+    border-radius:16px;padding:22px;width:100%;max-width:420px;box-shadow:var(--shadow);
+    animation:modalIn .3s cubic-bezier(.2,1.2,.4,1)}
+  @keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   .modal h3{margin:0 0 14px;font-size:16px}
   .modal label{display:block;font-size:12px;font-weight:650;color:var(--muted);margin:12px 0 5px;text-transform:uppercase;letter-spacing:.06em}
   .modal input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
-    padding:10px 11px;font-size:13.5px;font-family:inherit}
+    padding:10px 11px;font-size:13.5px;font-family:inherit;transition:border-color .2s ease}
   .modal input:focus{border-color:var(--accent)}
   .modal .row{display:flex;gap:10px;margin-top:18px}
   .modal .row .btn{flex:1}
-  .install-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px;color:var(--ink)}
-  .install-steps b{color:var(--accent)}
-  .install-lead{font-size:13px;color:var(--muted);margin:0 0 14px}
 
-  /* ---- bottom nav ---- */
-  .bottomnav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;
-    background:var(--panel);border-top:1px solid var(--line);padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:50}
-  .nav-btn{appearance:none;border:none;background:none;font-family:inherit;cursor:pointer;color:var(--faint);
-    display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:650;padding:4px 14px;flex:1}
-  .nav-btn .nav-ic{font-size:20px;line-height:1}
-  .nav-btn.active{color:var(--accent)}
-
-  footer{text-align:center;color:var(--faint);font-size:11px;margin-top:20px}
+  footer{text-align:center;color:var(--faint);font-size:11.5px;margin-top:26px}
 
   @media (prefers-reduced-motion:reduce){
-    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+    *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+    body::before{display:none}
+    #cursorGlow{display:none}
   }
 </style>
 </head>
 <body>
+<div id="cursorGlow" aria-hidden="true"></div>
 <div class="wrap">
   <header>
-    <div class="h-brand">
-      <div class="h-title">Annikas car</div>
-      <div class="h-model">BYD Atto 3</div>
+    <div class="h-left">
+      <div class="h-brand">
+        <div class="h-title">Annikas car<small>BYD Atto 3</small></div>
+        <div class="h-sub" id="lastUpdated">—</div>
+      </div>
+      <span class="pill offline" id="onlinePill"><span class="dot"></span><span>—</span></span>
     </div>
     <div class="h-actions">
-      <button class="chip-btn" id="installBtn" hidden>&#128241;</button>
+      <button class="chip-btn" id="installBtn" hidden>&#128241; Spara</button>
       <button class="icon-btn" id="refreshBtn" title="Refresh now">&#8635;</button>
       <button class="icon-btn" id="settingsBtn" title="Settings">&#9881;</button>
     </div>
   </header>
 
-  <div class="ticker" id="ticker"><span class="ticker-dot" id="tickerDot"></span><span id="tickerText">&mdash;</span></div>
-
   <div class="err-banner" id="setupBanner">
     <b>Set up your connection</b>
-    <span>Tap the gear icon (top right) and paste in your control server URL/key. Saved only in this browser, never sent anywhere else.</span>
+    <span>Click the gear icon (top right) and paste in your control server URL/key. Saved only in this browser, never sent anywhere else.</span>
   </div>
   <div class="err-banner" id="errBanner">
-    <b>Can't reach the car</b>
+    <b>Can't reach Home Assistant</b>
     <span id="errBannerText"></span>
   </div>
   <div class="stale-banner" id="staleBanner">
     <span>&#9888;</span><span id="staleBannerText"></span>
   </div>
 
-  <main>
-    <section class="page" id="page-home">
-      <div class="card hero">
-        <div class="hero-top">
-          <span class="hero-pct"><span class="bolt" id="battBolt" style="display:none">&#9889;</span><span id="battPct">--%</span></span>
-          <span class="hero-sub" id="chargeSub">&mdash;</span>
+  <div class="grid">
+    <div class="card c-battery">
+      <h2>Battery</h2>
+      <div class="batt-hero">
+        <div class="batt-topline">
+          <span class="batt-pct" id="battPctWrap"><span class="batt-bolt" id="battBolt" style="display:none">&#9889;</span><span id="battPct">--%</span></span>
+          <span class="sub" id="chargeSub">—</span>
         </div>
-        <div class="hero-bar"><i id="battFill"></i></div>
-        <div class="hero-body">
-          <img src="atto3.webp" alt="BYD Atto 3" class="hero-img">
-          <div class="hero-stats">
-            <div class="row"><span class="v" id="rangeVal">--</span><span class="u">km range</span></div>
-            <div class="row"><span class="v" id="kmPrice">--</span><span class="u">kr / 100 km</span></div>
-          </div>
-        </div>
-        <div class="chips" id="statusChips"></div>
-      </div>
-
-      <div class="card">
-        <h2>Car status</h2>
-        <div class="status-grid">
-          <div class="vrow"><span class="k">Speed</span><span class="v" id="vitSpeed">--</span></div>
-          <div class="vrow"><span class="k">Odometer</span><span class="v" id="vitOdo">--</span></div>
-          <div class="vrow"><span class="k">Cabin temp</span><span class="v" id="vitCabin">--</span></div>
-          <div class="vrow"><span class="k">Exterior temp</span><span class="v" id="vitExt">--</span></div>
-        </div>
-        <div class="loc-row">
-          <div class="loc-state" id="locState">&mdash;</div>
-          <div class="loc-coords" id="locCoords">&mdash;, &mdash;</div>
-          <div class="loc-age" id="locAge">&mdash;</div>
-          <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
-        </div>
-        <div class="tire-grid">
-          <div class="tire" id="tireFLWrap"><div class="k">FL</div><div class="v" id="tireFL">--</div></div>
-          <div class="tire" id="tireFRWrap"><div class="k">FR</div><div class="v" id="tireFR">--</div></div>
-          <div class="tire" id="tireRLWrap"><div class="k">RL</div><div class="v" id="tireRL">--</div></div>
-          <div class="tire" id="tireRRWrap"><div class="k">RR</div><div class="v" id="tireRR">--</div></div>
+        <div class="batt-bar"><i id="battFill"></i></div>
+        <img src="atto3.webp" alt="BYD Atto 3" class="car-img">
+        <div class="car-stats">
+          <div class="range"><span id="rangeVal">--</span> <small>km range</small></div>
+          <div class="range"><span id="kmPrice">--</span> <small>kr / 100 km</small></div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section class="page" id="page-charge" hidden>
-      <div class="card">
-        <h2>Charging control</h2>
-        <div class="charge-price-row">
-          <span class="charge-price-now" id="cpNow">-- kr/kWh</span>
-          <span class="charge-price-sub">right now &middot; fill to 100%: <b id="cpFillNow">--</b></span>
-        </div>
-        <div class="elpris-tip" id="elprisTip"><span class="ic">&#9203;</span><span id="elprisTipText"></span></div>
+    <div class="card c-status">
+      <h2>Status</h2>
+      <div class="chips" id="statusChips"></div>
+    </div>
 
-        <button class="btn primary" id="scheduleBestBtn" style="margin-bottom:12px">Start charging at the best time</button>
-        <div class="btn-row" style="margin-bottom:14px">
-          <button class="btn ghost" id="startChargeBtn">Start now</button>
-          <button class="btn ghost" id="stopChargeBtn">Stop charging</button>
-        </div>
-
-        <div class="util-row">
-          <button class="btn ghost small" id="freeChargeBtn">&#127381; Gratis laddning</button>
-          <span class="d">Free public charger &mdash; sets this/last charge to 0 kr</span>
-        </div>
-
-        <div class="ctl-row">
-          <div class="ctl-label"><span class="t">Charge to full</span><i class="info-ic" title="Overrides the schedule to always charge to 100%">i</i></div>
-          <label class="switch" id="swChargeFullWrap"><input type="checkbox" id="swChargeFull"><span class="track"></span><span class="knob"></span></label>
-        </div>
-        <div class="ctl-row">
-          <div class="ctl-label"><span class="t">Schedule enabled</span><i class="info-ic" title="Car auto-charges during the window below">i</i></div>
-          <label class="switch" id="swScheduleWrap"><input type="checkbox" id="swSchedule"><span class="track"></span><span class="knob"></span></label>
-        </div>
-        <div class="ctl-row">
-          <div class="ctl-label"><span class="t">Repeat daily</span><i class="info-ic" title="Off = one-off window, which blocks charge-on-plug outside it">i</i></div>
-          <label class="switch" id="swRepeatWrap"><input type="checkbox" id="swRepeat"><span class="track"></span><span class="knob"></span></label>
-        </div>
-
-        <div class="schedule-window">Window: <b id="schedWindow">--:-- &ndash; --:--</b></div>
-        <div class="time-row" style="margin-top:10px">
-          <input type="time" id="startTimeInput">
-          <span style="color:var(--faint)">&#8594;</span>
-          <input type="time" id="endTimeInput">
-          <button class="btn ghost small" id="setTimeBtn">Set</button>
-        </div>
+    <div class="card c-vitals">
+      <h2>Vitals</h2>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Speed</span><span class="v" id="vitSpeed">--</span></div>
+        <div class="vrow"><span class="k">Cabin temp</span><span class="v" id="vitCabin">--</span></div>
+        <div class="vrow"><span class="k">Exterior temp</span><span class="v" id="vitExt">--</span></div>
+        <div class="vrow"><span class="k">Odometer</span><span class="v" id="vitOdo">--</span></div>
       </div>
-    </section>
+    </div>
 
-    <section class="page" id="page-climate" hidden>
-      <div class="card">
-        <h2>Climate control</h2>
-        <div class="climate-row">
-          <div class="temp-stepper">
-            <button type="button" id="tempDown" aria-label="Decrease temperature">&#8722;</button>
-            <span class="val"><span id="tempVal">21</span>&deg;C</span>
-            <button type="button" id="tempUp" aria-label="Increase temperature">&#43;</button>
-          </div>
-          <select class="climate-duration" id="climateDuration">
-            <option value="10">10 min</option>
-            <option value="15">15 min</option>
-            <option value="20">20 min</option>
-            <option value="25">25 min</option>
-            <option value="30">30 min</option>
-          </select>
-        </div>
-        <div class="btn-row">
-          <button class="btn primary" id="climateStartBtn">Start climate</button>
-          <button class="btn ghost" id="climateStopBtn">Stop</button>
-        </div>
+    <div class="card c-location">
+      <h2>Location</h2>
+      <div class="loc-row">
+        <div class="loc-state" id="locState">—</div>
+        <div class="loc-coords" id="locCoords">—, —</div>
+        <div class="loc-age" id="locAge">—</div>
+        <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
+      </div>
+    </div>
+
+    <div class="card c-tires">
+      <h2>Tire pressure</h2>
+      <div class="tire-grid">
+        <div class="tire"><div class="k">FL</div><div class="v" id="tireFL">--</div></div>
+        <div class="tire"><div class="k">FR</div><div class="v" id="tireFR">--</div></div>
+        <div class="tire"><div class="k">RL</div><div class="v" id="tireRL">--</div></div>
+        <div class="tire"><div class="k">RR</div><div class="v" id="tireRR">--</div></div>
+      </div>
+    </div>
+
+    <div class="card c-charge">
+      <h2>Charging control</h2>
+
+      <div class="charge-price-row">
+        <span class="charge-price-now" id="cpNow">-- kr/kWh</span>
+        <span class="charge-price-sub">right now &middot; fill to 100%: <b id="cpFillNow">--</b></span>
+      </div>
+      <div class="elpris-tip" id="elprisTip"><span class="ic">&#9203;</span><span id="elprisTipText"></span></div>
+
+      <button class="btn primary" id="scheduleBestBtn" style="margin-bottom:12px">Start charging at the best time</button>
+      <div class="btn-row" style="margin-bottom:14px">
+        <button class="btn ghost" id="startChargeBtn">Start now</button>
+        <button class="btn ghost" id="stopChargeBtn">Stop charging</button>
       </div>
 
-      <div class="card">
-        <h2>Comfort</h2>
-        <div class="seat-row">
-          <span class="t">&#128664; Driver seat heat</span>
-          <div class="seg" data-seat="driver">
-            <button type="button" data-level="off" class="active">Off</button>
-            <button type="button" data-level="low">Low</button>
-            <button type="button" data-level="high">High</button>
-          </div>
-        </div>
-        <div class="seat-row">
-          <span class="t">&#128100; Passenger seat heat</span>
-          <div class="seg" data-seat="passenger">
-            <button type="button" data-level="off" class="active">Off</button>
-            <button type="button" data-level="low">Low</button>
-            <button type="button" data-level="high">High</button>
-          </div>
-        </div>
-        <div class="ctl-row">
-          <div class="ctl-label"><span class="t">Steering wheel heat</span></div>
-          <label class="switch" id="swSteeringWrap"><input type="checkbox" id="swSteering"><span class="track"></span><span class="knob"></span></label>
-        </div>
-        <div class="ctl-row">
-          <div class="ctl-label"><span class="t">Battery heat</span><i class="info-ic" title="Warms the battery in cold weather">i</i></div>
-          <label class="switch" id="swBatteryHeatWrap"><input type="checkbox" id="swBatteryHeat"><span class="track"></span><span class="knob"></span></label>
-        </div>
-      </div>
-    </section>
-
-    <section class="page" id="page-more" hidden>
-      <div class="card">
-        <h2>Vehicle control</h2>
-        <div class="btn-row" style="margin-bottom:10px">
-          <button class="btn lock-btn" id="lockBtn">&#128274; Lock</button>
-          <button class="btn unlock-btn" id="unlockBtn">&#128275; Unlock</button>
-        </div>
-        <div class="btn-row">
-          <button class="btn ghost" id="flashBtn">&#128161; Flash lights</button>
-          <button class="btn ghost" id="findCarBtn">&#128266; Find car</button>
-        </div>
+      <div class="util-row" style="margin-bottom:14px">
+        <button class="btn ghost small" id="freeChargeBtn">&#127381; Gratis laddning</button>
+        <span class="d">Free public charger — sets this/last charge to 0 kr</span>
       </div>
 
-      <div class="card">
-        <h2>Windows &amp; boot</h2>
-        <div class="btn-row" style="margin-bottom:10px">
-          <button class="btn ghost" id="windowsOpenBtn">&#129747; Crack windows</button>
-          <button class="btn ghost" id="windowsCloseBtn">&#11015; Close windows</button>
-        </div>
-        <div class="btn-row">
-          <button class="btn ghost" id="trunkOpenBtn">&#128188; Open boot</button>
-          <button class="btn ghost" id="trunkCloseBtn">&#128188; Close boot</button>
-        </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Charge to full</div><div class="d">Overrides the schedule to always charge to 100%</div></div>
+        <label class="switch" id="swChargeFullWrap"><input type="checkbox" id="swChargeFull"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Schedule enabled</div><div class="d">Car auto-charges during the window below</div></div>
+        <label class="switch" id="swScheduleWrap"><input type="checkbox" id="swSchedule"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Repeat daily</div><div class="d">Off = one-off window (blocks charge-on-plug outside it)</div></div>
+        <label class="switch" id="swRepeatWrap"><input type="checkbox" id="swRepeat"><span class="track"></span><span class="knob"></span></label>
       </div>
 
-      <div class="card">
-        <h2>Charge history</h2>
-        <div class="spark-row">
-          <div><span class="spark-total" id="chargeMonthTotal">--</span><span class="u">this month</span></div>
-          <button class="btn ghost small" id="chargeShowAllBtn">Show all</button>
-        </div>
-        <div class="spark-wrap" id="chargeSparkWrap"></div>
-        <div class="charge-table-wrap" id="chargeTableWrap" hidden>
-          <table class="charge-table">
-            <thead><tr><th>Started</th><th>Duration</th><th>Energy</th><th>Avg power</th><th>Avg price</th><th>Cost</th></tr></thead>
-            <tbody id="chargeRows"><tr><td class="msg" colspan="6">Loading&hellip;</td></tr></tbody>
-          </table>
-        </div>
-        <div class="charge-note">Estimated from battery power &times; Nord Pool SE3 spot price during each charge &mdash; excludes grid fees, VAT and charging losses.</div>
+      <div class="schedule-window">Window: <b id="schedWindow">--:-- – --:--</b></div>
+      <div class="time-row" style="margin-top:10px">
+        <input type="time" id="startTimeInput">
+        <span style="color:var(--faint)">&#8594;</span>
+        <input type="time" id="endTimeInput">
+        <button class="btn ghost small" id="setTimeBtn">Set</button>
       </div>
+    </div>
 
-      <div class="card">
-        <h2>Utilities</h2>
+    <div class="card c-util">
+      <h2>Utilities</h2>
+      <div class="util-grid">
         <div class="util-row">
           <button class="btn ghost small" id="forcePollBtn">Force poll</button>
-          <span class="d">Ask the car for fresh data now</span>
+          <span class="d">Ask the car for fresh data right now</span>
         </div>
-        <div class="util-row" style="margin-bottom:0">
+        <div class="util-row">
           <button class="btn ghost small" id="fetchEnergyBtn">Fetch energy data</button>
           <span class="d">Pull latest charge/energy history</span>
         </div>
       </div>
+    </div>
 
-      <div class="card">
-        <h2>App</h2>
-        <button class="btn ghost" id="moreSettingsBtn" style="width:100%">&#9881; Connection settings</button>
+    <div class="card c-remote">
+      <h2>Vehicle control</h2>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn lock-btn" id="lockBtn">&#128274; Lock</button>
+        <button class="btn unlock-btn" id="unlockBtn">&#128275; Unlock</button>
       </div>
-    </section>
-  </main>
+      <div class="btn-row">
+        <button class="btn ghost" id="flashBtn">&#128161; Flash lights</button>
+        <button class="btn ghost" id="findCarBtn">&#128266; Find car</button>
+      </div>
+    </div>
+
+    <div class="card c-climate">
+      <h2>Climate control</h2>
+      <div class="climate-row">
+        <div class="temp-stepper">
+          <button type="button" id="tempDown" aria-label="Decrease temperature">&#8722;</button>
+          <span class="val"><span id="tempVal">21</span>&deg;C</span>
+          <button type="button" id="tempUp" aria-label="Increase temperature">&#43;</button>
+        </div>
+        <select class="climate-duration" id="climateDuration">
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+          <option value="25">25 min</option>
+          <option value="30">30 min</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="climateStartBtn">Start climate</button>
+        <button class="btn ghost" id="climateStopBtn">Stop</button>
+      </div>
+    </div>
+
+    <div class="card c-windows">
+      <h2>Windows &amp; boot</h2>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn ghost" id="windowsOpenBtn">&#129747; Crack windows</button>
+        <button class="btn ghost" id="windowsCloseBtn">&#11015; Close windows</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="trunkOpenBtn">&#128188; Open boot</button>
+        <button class="btn ghost" id="trunkCloseBtn">&#128188; Close boot</button>
+      </div>
+    </div>
+
+    <div class="card c-comfort">
+      <h2>Comfort</h2>
+      <div class="seat-row">
+        <span class="t">&#128664; Driver seat heat</span>
+        <div class="seg" data-seat="driver">
+          <button type="button" data-level="off" class="active">Off</button>
+          <button type="button" data-level="low">Low</button>
+          <button type="button" data-level="high">High</button>
+        </div>
+      </div>
+      <div class="seat-row">
+        <span class="t">&#128100; Passenger seat heat</span>
+        <div class="seg" data-seat="passenger">
+          <button type="button" data-level="off" class="active">Off</button>
+          <button type="button" data-level="low">Low</button>
+          <button type="button" data-level="high">High</button>
+        </div>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Steering wheel heat</div></div>
+        <label class="switch" id="swSteeringWrap"><input type="checkbox" id="swSteering"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Battery heat</div><div class="d">Warms the battery in cold weather</div></div>
+        <label class="switch" id="swBatteryHeatWrap"><input type="checkbox" id="swBatteryHeat"><span class="track"></span><span class="knob"></span></label>
+      </div>
+    </div>
+
+    <div class="card c-history">
+      <h2>Previous charges</h2>
+      <div class="charge-table-wrap">
+        <table class="charge-table">
+          <thead>
+            <tr><th>Started</th><th>Duration</th><th>Energy</th><th>Avg power</th><th>Avg price</th><th>Cost</th></tr>
+          </thead>
+          <tbody id="chargeRows">
+            <tr><td class="msg" colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="charge-note">Estimated from battery power &times; Nord Pool SE3 spot price during each charge — excludes grid fees, VAT and charging losses. Logged by the mirror since 7 Jul 2026.</div>
+    </div>
+  </div>
 
   <footer>Polls every 20s through the control server &middot; lock/unlock/climate call BYD's cloud directly</footer>
 </div>
-
-<nav class="bottomnav">
-  <button class="nav-btn active" data-page="home"><span class="nav-ic">&#127968;</span><span>Home</span></button>
-  <button class="nav-btn" data-page="charge"><span class="nav-ic">&#128268;</span><span>Charging</span></button>
-  <button class="nav-btn" data-page="climate"><span class="nav-ic">&#10052;&#65039;</span><span>Climate</span></button>
-  <button class="nav-btn" data-page="more"><span class="nav-ic">&#8942;</span><span>More</span></button>
-</nav>
 
 <div class="toast" id="toast"></div>
 
@@ -524,7 +615,10 @@
   // browser's localStorage. Home Assistant is no longer talked to directly
   // from the browser - every ha* call below goes through the control
   // server's /ha/<path> proxy instead (see server.py's ha_proxy), which
-  // authenticates to HA with its OWN stored token.
+  // authenticates to HA with its OWN stored token. That means: (1) only
+  // this one control server needs to be reachable/Funneled for the whole
+  // app to work from anywhere, Home Assistant itself stays tailnet-only
+  // either way, and (2) there's only one credential to configure.
   var DEFAULTS = {
     controlUrl: "https://magicmirroros.tail655aa9.ts.net",
     controlKey: ""
@@ -560,7 +654,6 @@
     startTime: "time."+VIN_PREFIX+"_start_time",
     endTime: "time."+VIN_PREFIX+"_end_time"
   };
-  var TIRE_LOW_KPA = 200; // heuristic "flag it" floor, not a manufacturer spec
 
   function cfg(){
     var stored = null;
@@ -574,7 +667,12 @@
 
   // One-tap setup: a link like ?setup=1&controlUrl=...&controlKey=... saves
   // those values to THIS browser's localStorage and is then immediately
-  // stripped from the address bar/history via replaceState.
+  // stripped from the address bar/history via replaceState, so the key
+  // doesn't linger anywhere visible after the first load. Lets a new
+  // person (e.g. a family member) get fully configured by opening one
+  // link instead of typing fields by hand - they still need to actually
+  // be reachable (Tailscale, or the public Funnel URL if set up) and hold
+  // a valid key, this just removes the manual copy-paste step.
   (function applySetupLink(){
     var params = new URLSearchParams(location.search);
     if(!params.has("setup")) return;
@@ -615,7 +713,8 @@
   }
 
   // Both of these go through the control server's /ha/<path> proxy (see
-  // server.py's ha_proxy) rather than calling Home Assistant directly.
+  // server.py's ha_proxy) rather than calling Home Assistant directly -
+  // it holds its own HA token, so the browser never needs one.
   function haGet(entity){
     var c = cfg();
     return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/states/"+encodeURIComponent(entity), {
@@ -661,14 +760,10 @@
     return (Date.now() - new Date(iso).getTime())/60000;
   }
 
-  // ---- animated count-up for numeric readouts (the one deliberate motion
-  // moment kept from the old design, alongside the battery bar fill -
-  // everything else decorative - cursor glow, card tilt, click ripples,
-  // page-load stagger - was cut) ----
+  // ---- animated count-up for numeric readouts ----
   var numCache = {};
   function animateNumber(id, to, decimals, suffix){
     var el = $(id);
-    if(!el) return;
     if(to===null || to===undefined){ el.textContent = "--"; numCache[id]=null; return; }
     var from = numCache[id];
     if(from===null||from===undefined) from = to;
@@ -713,35 +808,6 @@
     return "var(--bad)";
   }
 
-  // ---- the one "is everything fine" signal, always visible regardless
-  // of which tab is open ----
-  function renderTicker(){
-    var issues = [];
-    if(on(state[E.doors])) issues.push("doors open");
-    if(on(state[E.windows])) issues.push("windows open");
-    var telAge = state[E.telemetryUpdated] ? ageMinutes(state[E.telemetryUpdated].state) : Infinity;
-    if(telAge > 20) issues.push("data stale");
-    ["FL","FR","RL","RR"].forEach(function(pos){
-      var v = num(state[E["tire"+pos]]);
-      if(v !== null && v < TIRE_LOW_KPA) issues.push("tire "+pos+" low");
-    });
-    var battery = num(state[E.battery]);
-    var battTxt = battery!==null ? Math.round(battery)+"%" : "--%";
-    var charging = on(state[E.charging]), plugged = on(state[E.plug]);
-    var stateTxt = charging ? "charging" : (plugged ? "plugged in" : "not connected");
-    var loc = state[E.location];
-    var locTxt = loc ? (loc.state==="home" ? "Home" : (loc.state==="not_home" ? "Away" : loc.state)) : "--";
-    var dot = $("tickerDot");
-    if(issues.length){
-      dot.className = "ticker-dot warn";
-      $("tickerText").textContent = issues.length+" to check &middot; "+battTxt;
-      $("tickerText").innerHTML = issues.length+" to check &middot; "+battTxt+" &middot; "+locTxt;
-    } else {
-      dot.className = "ticker-dot ok";
-      $("tickerText").innerHTML = "All fine &middot; "+battTxt+" &middot; "+stateTxt;
-    }
-  }
-
   function render(){
     var errB=$("errBanner");
     if(!lastFetchOk){
@@ -751,7 +817,13 @@
       errB.classList.remove("show");
     }
 
+    var online = on(state[E.online]);
+    var onlinePill = $("onlinePill");
+    onlinePill.className = "pill "+(online?"online":"offline");
+    onlinePill.querySelector("span:last-child").textContent = online ? "Online" : "Offline";
+
     var telAge = state[E.telemetryUpdated] ? ageMinutes(state[E.telemetryUpdated].state) : Infinity;
+    $("lastUpdated").textContent = state[E.telemetryUpdated] ? "Telemetry "+fmtAge(state[E.telemetryUpdated].state) : "—";
     var staleB=$("staleBanner");
     if(telAge > 20){
       $("staleBannerText").textContent = "Telemetry hasn't updated in "+Math.round(telAge)+" min — data below may be out of date.";
@@ -760,15 +832,16 @@
       staleB.classList.remove("show");
     }
 
-    // hero: battery bar + car photo stats + status chips
+    // battery bar over the car photo
     var battery = num(state[E.battery]);
     var pct = battery!==null ? Math.max(0,Math.min(100,battery)) : null;
     var col = battColor(pct);
     var fill = $("battFill");
     fill.style.width = (pct!==null ? pct : 0)+"%";
     fill.style.backgroundColor = col;
+    fill.style.color = col; // driver for the glow's currentColor
     animateNumber("battPct", pct, 0, "%");
-    $("battPct").parentElement.style.color = col;
+    $("battPctWrap").style.color = col;
     var charging = on(state[E.charging]);
     $("battBolt").style.display = charging ? "" : "none";
 
@@ -779,6 +852,7 @@
     $("chargeSub").textContent = chargeSub;
     updateKmPrice(num(state[E.odometer]));
 
+    // status chips
     var haLocked = state[E.locked] ? state[E.locked].state==="off" : null; // HA lock convention: on=unlocked
     if(lockOverride !== null && haLocked === lockOverride) lockOverride = null; // HA caught up - trust it again
     var locked = lockOverride !== null ? lockOverride : haLocked;
@@ -786,14 +860,14 @@
     var windowsOpen = on(state[E.windows]);
     var sentry = on(state[E.sentry]);
     var chips = [];
-    chips.push(chipHtml(locked===null?"neutral":(locked?"ok":"bad"), locked===null?"&#128274;":(locked?"&#128274;":"&#128275;"), locked===null?"--":(locked?"Locked":"Unlocked")));
+    chips.push(chipHtml(locked===null?"neutral":(locked?"ok":"bad"), locked===null?"&#128274;":(locked?"&#128274;":"&#128275;"), locked===null?"Lock: --":(locked?"Locked":"Unlocked")));
     chips.push(chipHtml(doorsOpen?"bad":"ok", "&#128682;", doorsOpen?"Doors open":"Doors closed"));
     chips.push(chipHtml(windowsOpen?"bad":"ok", "&#129747;", windowsOpen?"Windows open":"Windows closed"));
     chips.push(chipHtml(plugged?(charging?"ok":"warn"):"neutral", "&#128267;", plugged?(charging?"Charging":"Plugged, idle"):"Unplugged"));
     chips.push(chipHtml(sentry?"ok":"neutral", "&#128737;", sentry?"Sentry on":"Sentry off"));
     $("statusChips").innerHTML = chips.join("");
 
-    // car status: vitals + location + tires
+    // vitals
     var cabin = num(state[E.cabinTemp]); if(cabin===0) cabin=null;
     var ext = num(state[E.extTemp]);
     var speed = num(state[E.speed]);
@@ -803,12 +877,13 @@
     animateNumber("vitExt", ext, 1, "°C");
     animateNumber("vitOdo", odo, 0, " km");
 
+    // tires
     ["FL","FR","RL","RR"].forEach(function(pos){
       var v = num(state[E["tire"+pos]]);
       animateNumber("tire"+pos, v, 0, " kPa");
-      $("tire"+pos+"Wrap").classList.toggle("low", v !== null && v < TIRE_LOW_KPA);
     });
 
+    // location
     var loc = state[E.location];
     if(loc && loc.attributes && typeof loc.attributes.latitude === "number"){
       var lat=loc.attributes.latitude, lon=loc.attributes.longitude;
@@ -821,6 +896,7 @@
       $("locLink").href = "#";
     }
 
+    // charging controls — reflect live state unless mid-action
     setSwitchUI("swChargeFull", "swChargeFullWrap", state[E.chargeToFull]);
     setSwitchUI("swSchedule", "swScheduleWrap", state[E.scheduleEnabled]);
     setSwitchUI("swRepeat", "swRepeatWrap", state[E.repeatDaily]);
@@ -841,7 +917,6 @@
     $("freeChargeBtn").disabled = busy;
 
     renderElpris(); // recompute "cost to fill" against the freshest battery %
-    renderTicker();
   }
 
   function chipHtml(kind, icon, label){
@@ -880,14 +955,16 @@
   // BYD's cloud has no working stop-charge command (confirmed no-op) - this
   // goes through the control server instead, which does two remote unlocks
   // a couple seconds apart to trigger the same interlock a physical
-  // key-fob/door-handle double-unlock uses.
+  // key-fob/door-handle double-unlock uses. Takes ~20s (BYD cloud round
+  // trip x2); the button/toast timing is the same shape as lock/unlock.
   $("stopChargeBtn").addEventListener("click", function(){
-    controlAction(this, "/charging/stop", {}, "Stop charging", "Charging stopped");
+    controlAction(this, "/charging/stop", {}, "Stop charging");
   });
   // "Start charging at the best time": server works out hours needed from
   // the live battery %, finds the cheapest still-to-come window of that
   // length, and writes it as an enabled one-shot schedule - custom handler
-  // (not controlAction) so the toast can report the ACTUAL window chosen.
+  // (not controlAction) so the toast can report the ACTUAL window chosen,
+  // which can differ from the single cheapest hour shown in the chart.
   $("scheduleBestBtn").addEventListener("click", function(){
     var btn = this, orig = btn.textContent;
     btn.disabled = true;
@@ -903,6 +980,9 @@
       .catch(function(e){ toast("Couldn't schedule charging: "+e.message,"err"); })
       .finally(function(){ btn.disabled = false; btn.textContent = orig; });
   });
+  // free public charger: zero the running session (logs 0 kr when it ends)
+  // or, if nothing is charging, the last completed charge - then refresh the
+  // table/kr-per-100km here; the mirror picks the same flag up within a minute
   $("freeChargeBtn").addEventListener("click", function(){
     withBusy(controlCall("/freecharge"))
       .then(function(j){
@@ -937,37 +1017,48 @@
   function wait(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
   var lockOverride = null; // true=locked, false=unlocked, null=trust HA's own state
 
+  // Best-effort, non-blocking: nudge HA to catch up with reality in the
+  // background. The button already reflects the true result instantly
+  // (below) - this is just so the rest of the page (and HA itself) syncs
+  // up too, without making the user wait on HA's flaky polling for it.
   function backgroundSync(beforeTs){
     haCall("button","press",{entity_id:E.forcePoll}).catch(function(){})
       .then(function(){ return wait(5000); })
       .then(function(){ return haGet(E.telemetryUpdated).catch(function(){ return null; }); })
       .then(function(fresh){
         if(fresh && fresh.state !== beforeTs) return refresh();
+        // HA's own poller can silently freeze (a known quirk of this
+        // integration) - force_poll alone won't unstick it, only a full
+        // reload of the config entry will.
         return haReloadEntry().catch(function(){})
           .then(function(){ return wait(8000); })
           .then(refresh);
       });
   }
 
-  function controlAction(btn, path, body, label, doneMsg, optimisticLocked){
+  function controlAction(btn, path, body, label, optimisticLocked){
     btn.disabled = true;
     var origText = btn.textContent;
     btn.textContent = label+"…";
+    // The round trip genuinely takes several seconds (BYD's cloud has to
+    // authenticate, verify the PIN, dispatch, then poll for confirmation) -
+    // show something immediately so the button doesn't feel unresponsive
+    // while that plays out.
     toast("Sending "+label.toLowerCase()+" command…");
     var beforeTs = state[E.telemetryUpdated] ? state[E.telemetryUpdated].state : null;
     withBusy(controlCall(path, body))
       .then(function(){
-        toast(doneMsg,"ok");
+        toast(label+" done","ok");
         if(optimisticLocked !== undefined){ lockOverride = optimisticLocked; render(); }
         backgroundSync(beforeTs);
       })
       .catch(function(e){ toast(label+" failed: "+e.message,"err"); })
       .finally(function(){ btn.disabled = false; btn.textContent = origText; });
   }
-  $("lockBtn").addEventListener("click", function(){ controlAction(this, "/lock", {}, "Lock", "Locked", true); });
-  $("unlockBtn").addEventListener("click", function(){ controlAction(this, "/unlock", {}, "Unlock", "Unlocked", false); });
-  $("flashBtn").addEventListener("click", function(){ controlAction(this, "/flash_lights", {}, "Flash lights", "Lights flashed"); });
-  $("findCarBtn").addEventListener("click", function(){ controlAction(this, "/find_car", {}, "Find car", "Honking & flashing"); });
+  $("lockBtn").addEventListener("click", function(){ controlAction(this, "/lock", {}, "Lock", true); });
+  $("unlockBtn").addEventListener("click", function(){ controlAction(this, "/unlock", {}, "Unlock", false); });
+  $("flashBtn").addEventListener("click", function(){ controlAction(this, "/flash_lights", {}, "Flash lights"); });
+  $("findCarBtn").addEventListener("click", function(){ controlAction(this, "/find_car", {}, "Find car"); });
 
   var climateTemp = 21;
   function renderTemp(){ $("tempVal").textContent = climateTemp; }
@@ -977,17 +1068,19 @@
 
   $("climateStartBtn").addEventListener("click", function(){
     var minutes = parseInt($("climateDuration").value, 10);
-    controlAction(this, "/climate/start", {temperature: climateTemp, minutes: minutes}, "Start climate", "Climate started");
+    controlAction(this, "/climate/start", {temperature: climateTemp, minutes: minutes}, "Climate start");
   });
   $("climateStopBtn").addEventListener("click", function(){
-    controlAction(this, "/climate/stop", {}, "Stop climate", "Climate stopped");
+    controlAction(this, "/climate/stop", {}, "Climate stop");
   });
 
-  $("windowsOpenBtn").addEventListener("click", function(){ controlAction(this, "/windows/open", {}, "Crack windows", "Windows cracked"); });
-  $("windowsCloseBtn").addEventListener("click", function(){ controlAction(this, "/windows/close", {}, "Close windows", "Windows closed"); });
-  $("trunkOpenBtn").addEventListener("click", function(){ controlAction(this, "/trunk/open", {}, "Open boot", "Boot opened"); });
-  $("trunkCloseBtn").addEventListener("click", function(){ controlAction(this, "/trunk/close", {}, "Close boot", "Boot closed"); });
+  $("windowsOpenBtn").addEventListener("click", function(){ controlAction(this, "/windows/open", {}, "Crack windows"); });
+  $("windowsCloseBtn").addEventListener("click", function(){ controlAction(this, "/windows/close", {}, "Close windows"); });
+  $("trunkOpenBtn").addEventListener("click", function(){ controlAction(this, "/trunk/open", {}, "Open boot"); });
+  $("trunkCloseBtn").addEventListener("click", function(){ controlAction(this, "/trunk/close", {}, "Close boot"); });
 
+  // ---- seat heat: 3-way segmented control (Off/Low/High), no button text
+  // swap since the labels themselves need to stay put ----
   function quickAction(btn, path, body, label){
     btn.disabled = true;
     toast("Sending "+label.toLowerCase()+"…");
@@ -1042,8 +1135,7 @@
       .catch(function(){ toast("Couldn't update schedule","err"); refresh(); });
   });
 
-  // ---- previous charges: sparkline + month total by default, full table
-  // behind "Show all" - most visits only need "how much this month" ----
+  // ---- previous charges table (log kept by the mirror, served by the control server) ----
   function fmtDur(ms){
     var min = Math.round(ms/60000);
     var h = Math.floor(min/60), m = min%60;
@@ -1057,8 +1149,14 @@
   function chargeMsgRow(text, bad){
     return '<tr><td class="msg" colspan="6"'+(bad?' style="color:var(--bad)"':'')+'>'+text+'</td></tr>';
   }
+  // ---- kr/100 km: monthly full cost (spot + grid fees + tax, same formula as the
+  //      mirror's EV dashboard) / km driven this month. Needs /charges + /lastcharge
+  //      from the control server plus the live odometer from HA. ----
   var SURCHARGE_PER_KWH = 0.68, TAX_FACTOR = 1.25;
 
+  // ---- elpris: SE3 hourly prices (today + tomorrow) from the control
+  // server's /elpris, plus a "cost to fill the battery" estimate using the
+  // same full-cost formula (spot + grid fee/energiskatt) x moms as above.
   var PACK_KWH = 60; // Atto 3 pack, same figure the mirror's history chart uses
   var elprisData = null;
   function fullPrice(spot){ return (spot + SURCHARGE_PER_KWH) * TAX_FACTOR; } // kr/kWh incl. fees+tax
@@ -1068,6 +1166,11 @@
     controlGet("/elpris").then(function(j){ elprisData = j; renderElpris(); }).catch(function(){});
   }
 
+  // Compact by design: lives inside Charging control now, right above the
+  // action buttons it informs. Just the current price + one fill-cost
+  // number + a plain-language tip when waiting actually pays off - the
+  // detailed chart and the redundant "cheapest hour" row were cut in favor
+  // of one line you can read in a glance.
   function renderElpris(){
     var tip = $("elprisTip");
     if(!elprisData || elprisData.currentPrice === null || elprisData.currentPrice === undefined){
@@ -1098,7 +1201,6 @@
       tip.style.display = "none";
     }
   }
-
   var chargesCache = null, monthOdo = null, lastOdo = null;
   function updateKmPrice(odo){
     if(odo !== null && odo !== undefined) lastOdo = odo;
@@ -1108,7 +1210,7 @@
     if(monthOdo.month !== (now.getFullYear()+"-"+(now.getMonth()+1))){ el.textContent = "--"; return; }
     var cost = 0;
     chargesCache.forEach(function(c){
-      if(c.free) return;
+      if(c.free) return; // free public charger: no spot cost, no grid fee/tax either
       var d = new Date(c.endedAt || c.startedAt || 0);
       if(d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()){
         cost += ((c.cost || 0) + (c.energyKwh || 0) * SURCHARGE_PER_KWH) * TAX_FACTOR;
@@ -1117,43 +1219,6 @@
     var km = lastOdo - monthOdo.odoStart;
     el.textContent = (km > 0 && cost > 0) ? String(Math.round(cost / km * 100)) : "--";
   }
-
-  function sparklineSvg(vals){
-    if(vals.length < 2) return "";
-    var W=280, H=44, pad=4;
-    var max=Math.max.apply(null, vals), min=Math.min.apply(null, vals);
-    if(max===min) max=min+1;
-    var x=function(i){ return pad+i/(vals.length-1)*(W-2*pad); };
-    var y=function(v){ return H-pad-(v-min)/(max-min)*(H-2*pad); };
-    var line=vals.map(function(v,i){ return (i===0?"M":"L")+x(i).toFixed(1)+","+y(v).toFixed(1); }).join(" ");
-    var area=line+" L"+x(vals.length-1).toFixed(1)+","+(H-pad)+" L"+x(0).toFixed(1)+","+(H-pad)+" Z";
-    return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Recent charge cost trend">'+
-      '<path d="'+area+'" fill="color-mix(in srgb, var(--accent) 18%, transparent)"/>'+
-      '<path d="'+line+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>'+
-    '</svg>';
-  }
-
-  function renderChargeSummary(){
-    if(!chargesCache) return;
-    var now = new Date();
-    var monthTotal = 0;
-    chargesCache.forEach(function(c){
-      if(c.free) return;
-      var d = new Date(c.endedAt || c.startedAt || 0);
-      if(d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth()){
-        monthTotal += ((c.cost||0)+(c.energyKwh||0)*SURCHARGE_PER_KWH)*TAX_FACTOR;
-      }
-    });
-    $("chargeMonthTotal").textContent = monthTotal>0 ? Math.round(monthTotal)+" kr" : "--";
-    var recent = chargesCache.slice(-14).map(function(c){ return c.cost||0; });
-    $("chargeSparkWrap").innerHTML = sparklineSvg(recent);
-  }
-
-  $("chargeShowAllBtn").addEventListener("click", function(){
-    var wrap = $("chargeTableWrap");
-    wrap.hidden = !wrap.hidden;
-    this.textContent = wrap.hidden ? "Show all" : "Hide";
-  });
 
   function loadCharges(){
     var body = $("chargeRows");
@@ -1168,8 +1233,7 @@
     controlGet("/charges").then(function(j){
       chargesCache = j.charges || [];
       updateKmPrice(null);
-      renderChargeSummary();
-      var list = (j.charges||[]).slice().reverse();
+      var list = (j.charges||[]).slice().reverse(); // newest first
       if(!list.length){ body.innerHTML = chargeMsgRow("No charges logged yet."); return; }
       body.innerHTML = list.map(function(c){
         var durMs = (c.startedAt && c.endedAt) ? c.endedAt - c.startedAt : null;
@@ -1197,15 +1261,13 @@
     loadElpris();
   });
 
-  // ---- settings modal (openable from the header gear OR the More tab) ----
-  function openSettings(){
+  // ---- settings modal ----
+  $("settingsBtn").addEventListener("click", function(){
     var c = cfg();
     $("cfgControlUrl").value = c.controlUrl;
     $("cfgControlKey").value = c.controlKey;
     $("settingsVeil").classList.add("show");
-  }
-  $("settingsBtn").addEventListener("click", openSettings);
-  $("moreSettingsBtn").addEventListener("click", openSettings);
+  });
   $("cfgCancel").addEventListener("click", function(){ $("settingsVeil").classList.remove("show"); });
   $("cfgSave").addEventListener("click", function(){
     saveCfg({
@@ -1254,22 +1316,68 @@
     navigator.serviceWorker.register("sw.js").catch(function(){});
   }
 
-  // ---- bottom nav: 4 pages, one visible at a time, remembered per-browser ----
-  var PAGES = ["home","charge","climate","more"];
-  function showPage(name){
-    if(PAGES.indexOf(name) === -1) name = "home";
-    PAGES.forEach(function(p){ $("page-"+p).hidden = p !== name; });
-    document.querySelectorAll(".nav-btn").forEach(function(b){
-      b.classList.toggle("active", b.getAttribute("data-page")===name);
-    });
-    try{ localStorage.setItem("carctrl_page", name); }catch(e){}
-  }
-  document.querySelectorAll(".nav-btn").forEach(function(b){
-    b.addEventListener("click", function(){ showPage(b.getAttribute("data-page")); });
+  // ---- entrance animation ----
+  var cardEls = document.querySelectorAll(".card");
+  cardEls.forEach(function(c, i){
+    if(reduceMotion){ c.classList.add("in","ready"); return; }
+    setTimeout(function(){ c.classList.add("in"); }, 70 + i*70);
+    setTimeout(function(){ c.classList.add("ready"); }, 700 + i*70);
   });
-  var startPage = "home";
-  try{ startPage = localStorage.getItem("carctrl_page") || "home"; }catch(e){}
-  showPage(startPage);
+
+  // ---- card spotlight + 3D tilt ----
+  cardEls.forEach(function(card){
+    card.addEventListener("mousemove", function(e){
+      var r = card.getBoundingClientRect();
+      var x = e.clientX - r.left, y = e.clientY - r.top;
+      card.style.setProperty("--mx", (x/r.width*100)+"%");
+      card.style.setProperty("--my", (y/r.height*100)+"%");
+      if(!reduceMotion){
+        var rx = ((y/r.height)-0.5) * -6;
+        var ry = ((x/r.width)-0.5) * 8;
+        card.style.transform = "perspective(900px) rotateX("+rx.toFixed(2)+"deg) rotateY("+ry.toFixed(2)+"deg) translateY(-4px)";
+      }
+    });
+    card.addEventListener("mouseleave", function(){ card.style.transform = ""; });
+  });
+
+  // ---- ripple on buttons ----
+  if(!reduceMotion){
+    document.querySelectorAll(".btn, .icon-btn").forEach(function(btn){
+      btn.addEventListener("click", function(e){
+        var rect = btn.getBoundingClientRect();
+        var d = Math.max(rect.width, rect.height) * 1.6;
+        var span = document.createElement("span");
+        span.className = "ripple";
+        span.style.width = span.style.height = d+"px";
+        span.style.left = (e.clientX - rect.left - d/2)+"px";
+        span.style.top = (e.clientY - rect.top - d/2)+"px";
+        btn.appendChild(span);
+        span.addEventListener("animationend", function(){ span.remove(); });
+      });
+    });
+  }
+
+  // ---- custom cursor glow (fine pointers, motion allowed) ----
+  if(!reduceMotion && window.matchMedia("(pointer:fine)").matches){
+    var glow = $("cursorGlow");
+    var mx=innerWidth/2, my=innerHeight/2, cx=mx, cy=my;
+    window.addEventListener("mousemove", function(e){ mx=e.clientX; my=e.clientY; });
+    document.addEventListener("mouseover", function(e){
+      if(e.target.closest("a,button,.switch,.chip,input,.card")) glow.classList.add("hover");
+    });
+    document.addEventListener("mouseout", function(e){
+      if(e.target.closest("a,button,.switch,.chip,input,.card")) glow.classList.remove("hover");
+    });
+    document.addEventListener("mousedown", function(){ glow.classList.add("click"); });
+    document.addEventListener("mouseup", function(){ glow.classList.remove("click"); });
+    (function loop(){
+      cx += (mx-cx)*0.2; cy += (my-cy)*0.2;
+      glow.style.transform = "translate("+cx+"px,"+cy+"px) translate(-50%,-50%)";
+      requestAnimationFrame(loop);
+    })();
+  } else {
+    var gEl = $("cursorGlow"); if(gEl) gEl.style.display = "none";
+  }
 
   refresh();
   setInterval(refresh, 20000);
