@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#0b1016">
-<title>ANNIKAS CAR</title>
+<title>STORMBULL</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Annikas car">
+<meta name="apple-mobile-web-app-title" content="Stormbull">
 <style>
   :root{
     --bg:#040608; --panel:#10151b; --panel2:#0a0e13; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
@@ -150,7 +150,12 @@
   .card:hover{border-color:color-mix(in srgb, var(--accent) 40%, transparent);
     box-shadow:0 22px 55px rgba(0,0,0,.35),0 2px 10px rgba(0,0,0,.2)}
   .card > *{position:relative;z-index:1}
-  .card h2{margin:0 0 14px;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  .card h2{margin:0 0 14px;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;justify-content:space-between;gap:10px}
+  #page-house .card h2{cursor:pointer;user-select:none}
+  .card-chevron{font-size:11px;transition:transform .2s ease;flex:none;color:var(--faint)}
+  .card.collapsed .card-chevron{transform:rotate(-90deg)}
+  .card.collapsed .card-body{display:none}
 
   /* overview */
   .c-battery{grid-column:span 4}
@@ -177,11 +182,12 @@
   .c-backup{grid-column:span 4}
   .c-mower{grid-column:span 12}
   .c-lighting{grid-column:span 12}
+  .c-schedule{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
     .c-windows,.c-comfort,.c-history,
     .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower,
-    .c-lighting{grid-column:span 12}
+    .c-lighting,.c-schedule{grid-column:span 12}
   }
 
   /* Plejd lighting section */
@@ -190,7 +196,10 @@
   .plejd-site-label:first-child{margin-top:0}
   .plejd-room{margin-bottom:6px}
   .plejd-room-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
-    font-weight:650;margin:10px 0 2px}
+    font-weight:650;margin:10px 0 2px;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between}
+  .plejd-room-label .chev{font-size:10px;transition:transform .2s ease}
+  .plejd-room.collapsed .chev{transform:rotate(-90deg)}
+  .plejd-room.collapsed .plejd-room-body{display:none}
   .plejd-light-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line)}
   .plejd-light-row:last-child{border-bottom:none}
   .plejd-light-name{flex:0 0 150px;font-size:13.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -270,6 +279,10 @@
   .chip.bad{color:var(--bad)}
   .chip.neutral{color:var(--muted)}
   .chip.warn{color:var(--warn)}
+  /* .chip is also used as a <button> (scene quick-fire) - native button
+     styling otherwise fights the dark background with near-invisible text */
+  button.chip{appearance:none;color:var(--ink);font:inherit;cursor:pointer}
+  button.chip:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel2))}
 
   .vitals-list{display:flex;flex-direction:column;gap:0}
   .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--line);
@@ -321,8 +334,20 @@
   .grp-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
     margin:12px 0 2px;font-weight:650}
   .grp-label:first-child{margin-top:0}
-  .now-playing{font-size:13px;color:var(--muted);margin-bottom:10px}
-  .now-playing b{color:var(--ink);font-weight:650}
+  .now-playing-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .now-playing-art{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);display:none}
+  .now-playing-art.show{display:block}
+  .now-playing-text{min-width:0;flex:1}
+  .now-playing-title{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .now-playing-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .eq-bars{display:none;align-items:flex-end;gap:2px;height:14px;flex:none}
+  .eq-bars.show{display:flex}
+  .eq-bars i{width:3px;background:var(--accent);border-radius:2px;animation:eqBounce 900ms ease-in-out infinite}
+  .eq-bars i:nth-child(1){animation-delay:-.6s;height:40%}
+  .eq-bars i:nth-child(2){animation-delay:-.3s;height:100%}
+  .eq-bars i:nth-child(3){animation-delay:0s;height:65%}
+  @keyframes eqBounce{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
   .media-row{display:flex;gap:8px;margin-bottom:14px}
   .tts-row{display:flex;gap:8px;margin-bottom:12px}
   .tts-row input[type=text]{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
@@ -421,7 +446,7 @@
   <header>
     <div class="h-left">
       <div class="h-brand">
-        <div class="h-title">Annikas car<small>BYD Atto 3</small></div>
+        <div class="h-title">Stormbull<small>Car &amp; House</small></div>
         <div class="h-sub" id="lastUpdated">—</div>
       </div>
       <span class="pill offline" id="onlinePill"><span class="dot"></span><span>—</span></span>
@@ -660,9 +685,32 @@
       <div id="lightingRooms"></div>
     </div>
 
+    <div class="card c-schedule">
+      <h2>Lighting schedules</h2>
+      <div class="grp-label">Add a schedule</div>
+      <select class="sel" id="schedTarget" style="width:100%;margin-bottom:8px"></select>
+      <div class="ctl-row" id="schedActionRow">
+        <div class="ctl-label"><div class="t">Turn on</div><div class="d">Off if unchecked</div></div>
+        <label class="switch" id="schedActionWrap"><input type="checkbox" id="schedAction" checked><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="time-row" style="margin:12px 0">
+        <input type="time" id="schedTime" value="07:00">
+      </div>
+      <button class="btn primary" id="schedAddBtn" style="margin-bottom:16px">Add schedule</button>
+      <div class="grp-label">Active schedules</div>
+      <div id="schedList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
+    </div>
+
     <div class="card c-sonos-tv">
       <h2>Sonos — TV room</h2>
-      <div class="now-playing" id="sonosTvNowPlaying">—</div>
+      <div class="now-playing-row">
+        <img class="now-playing-art" id="sonosTvArt" alt="">
+        <div class="now-playing-text">
+          <div class="now-playing-title" id="sonosTvNowPlaying">—</div>
+          <div class="now-playing-sub" id="sonosTvNowPlayingSub"></div>
+        </div>
+        <div class="eq-bars" id="sonosTvEq"><i></i><i></i><i></i></div>
+      </div>
       <div class="media-row">
         <button class="btn ghost small" id="sonosTvPlayPause">Play</button>
         <button class="btn ghost small" id="sonosTvPrev">&#9198;</button>
@@ -702,7 +750,14 @@
 
     <div class="card c-sonos-kitchen">
       <h2>Sonos — Kitchen</h2>
-      <div class="now-playing" id="sonosKitchenNowPlaying">—</div>
+      <div class="now-playing-row">
+        <img class="now-playing-art" id="sonosKitchenArt" alt="">
+        <div class="now-playing-text">
+          <div class="now-playing-title" id="sonosKitchenNowPlaying">—</div>
+          <div class="now-playing-sub" id="sonosKitchenNowPlayingSub"></div>
+        </div>
+        <div class="eq-bars" id="sonosKitchenEq"><i></i><i></i><i></i></div>
+      </div>
       <div class="media-row">
         <button class="btn ghost small" id="sonosKitchenPlayPause">Play</button>
         <button class="btn ghost small" id="sonosKitchenPrev">&#9198;</button>
@@ -766,6 +821,15 @@
     <div class="card c-doors">
       <h2>Doors</h2>
       <div class="chips" style="margin-bottom:10px" id="doorChips"></div>
+      <button class="btn primary" id="unlockBothDoorsBtn" style="margin-bottom:10px">Open front &amp; back door</button>
+      <div class="btn-row" style="margin-bottom:8px">
+        <button class="btn unlock-btn small" id="frontDoorUnlockBtn">Unlock front</button>
+        <button class="btn lock-btn small" id="frontDoorLockBtn">Lock front</button>
+      </div>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn unlock-btn small" id="backDoorUnlockBtn">Unlock back</button>
+        <button class="btn lock-btn small" id="backDoorLockBtn">Lock back</button>
+      </div>
       <div class="vitals-list">
         <div class="vrow"><span class="k">Front door battery</span><span class="v" id="frontDoorBattery">--</span></div>
         <div class="vrow"><span class="k">Back door battery</span><span class="v" id="backDoorBattery">--</span></div>
@@ -1404,15 +1468,47 @@
     if(sel.getAttribute("data-opts") !== optsHtml){ sel.innerHTML = optsHtml; sel.setAttribute("data-opts", optsHtml); }
     sel.value = current;
   }
+  // Authenticated album-art fetch: entity_picture is served BY Home
+  // Assistant itself (not the generic /ha/<path> JSON proxy's usual GET),
+  // and a plain <img src> can't carry the X-Api-Key header the control
+  // server requires - so this fetches it as a blob and swaps in an object
+  // URL instead. Only re-fetches when the picture path actually changes,
+  // and revokes the previous object URL to avoid leaking memory.
+  var albumArtCache = {};
+  function updateAlbumArt(prefix, mp){
+    var img = $(prefix+"Art");
+    var pic = mp && mp.attributes && mp.attributes.entity_picture;
+    if(!pic){ img.classList.remove("show"); return; }
+    var cached = albumArtCache[prefix];
+    if(cached && cached.pic === pic){ img.classList.add("show"); return; }
+    var c = cfg();
+    var subpath = pic.replace(/^\/api\//,"");
+    fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/"+subpath, { headers:{ "X-Api-Key": c.controlKey } })
+      .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.blob(); })
+      .then(function(blob){
+        if(cached && cached.objectUrl) URL.revokeObjectURL(cached.objectUrl);
+        var url = URL.createObjectURL(blob);
+        albumArtCache[prefix] = { pic: pic, objectUrl: url };
+        img.src = url;
+        img.classList.add("show");
+      })
+      .catch(function(){ img.classList.remove("show"); });
+  }
+
   function renderSonosCard(prefix, entity, hasSoundbar){
     var mp = state[entity];
-    var np = $(prefix+"NowPlaying");
+    var np = $(prefix+"NowPlaying"), sub = $(prefix+"NowPlayingSub"), eq = $(prefix+"Eq");
+    var isPlaying = mp && mp.state === "playing";
     if(mp){
       var title = mp.attributes && (mp.attributes.media_title || mp.attributes.media_channel);
-      np.textContent = title ? title : (mp.state==="idle" ? "Idle" : mp.state);
+      np.textContent = title ? title : (mp.state==="idle" ? "Idle" : mp.state==="paused" ? "Paused" : mp.state);
+      sub.textContent = (mp.attributes && mp.attributes.media_channel && mp.attributes.media_channel !== title) ? mp.attributes.media_channel : "";
     } else {
       np.textContent = "--";
+      sub.textContent = "";
     }
+    eq.classList.toggle("show", !!isPlaying);
+    updateAlbumArt(prefix, mp);
     $(prefix+"PlayPause").textContent = (mp && mp.state==="playing") ? "Pause" : "Play";
     setVolumeUI(prefix+"Vol", mp);
     setSwitchUI(prefix+"Mute", prefix+"MuteWrap", mp ? {state: (mp.attributes && mp.attributes.is_volume_muted) ? "on":"off"} : null);
@@ -1777,9 +1873,11 @@
   // defined earlier alongside EH) rather than hand-written per light -
   // there are ~26 lights across two sites, and this keeps it maintainable
   // if more Plejd devices are added later.
+  function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,""); }
   function buildLightingUI(){
     var roomsHtml = PLEJD_SITES.map(function(site){
       var roomsInSite = site.rooms.map(function(room){
+        var roomKey = "plr_"+slug(site.name+"_"+room.label);
         var rowsHtml = room.lights.map(function(l){
           var key = plejdKey(l.id);
           var dimmable = l.dimmable !== false;
@@ -1792,14 +1890,22 @@
               : '<span class="plejd-light-bri"></span><span class="plejd-light-pct"></span>')+
           '</div>';
         }).join("");
-        return '<div class="plejd-room"><div class="plejd-room-label">'+room.label+'</div>'+rowsHtml+'</div>';
+        return '<div class="plejd-room collapsed" data-room-key="'+roomKey+'">'+
+          '<div class="plejd-room-label">'+room.label+' <span class="chev">&#9662;</span></div>'+
+          '<div class="plejd-room-body" id="'+roomKey+'">'+rowsHtml+'</div>'+
+        '</div>';
       }).join("");
       return '<div class="plejd-site-label">'+site.name+'</div>'+roomsInSite;
     }).join("");
     $("lightingRooms").innerHTML = roomsHtml;
+    document.querySelectorAll(".plejd-room-label").forEach(function(label){
+      label.addEventListener("click", function(){
+        label.closest(".plejd-room").classList.toggle("collapsed");
+      });
+    });
 
     $("lightingScenes").innerHTML = PLEJD_SCENES.map(function(sc){
-      return '<button type="button" class="chip" data-scene="'+sc.id+'" style="cursor:pointer;border:none;font:inherit">'+
+      return '<button type="button" class="chip" data-scene="'+sc.id+'">'+
         '<span class="ic">&#10024;</span><span>'+sc.name+'</span></button>';
     }).join("");
   }
@@ -1837,6 +1943,126 @@
 
   buildLightingUI();
   wireLighting();
+
+  // Lighting schedules: a daily time-trigger automation per schedule,
+  // created/removed through HA's automation config REST API (same
+  // POST /config/automation/config/<id> pattern already used for the BYD
+  // charging automations). Listing/deleting needs the full state list
+  // (schedules aren't known ahead of time so can't be added to the normal
+  // 20s poll batch) - fetched on demand, not every render.
+  var SCHEDULE_PREFIX = "House schedule: ";
+  function haGetAllStates(){
+    var c = cfg();
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/states", { headers:{ "X-Api-Key": c.controlKey } })
+      .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); });
+  }
+  function haConfigPost(path, body){
+    var c = cfg();
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/"+path, {
+      method:"POST",
+      headers:{ "X-Api-Key": c.controlKey, "Content-Type":"application/json" },
+      body: JSON.stringify(body||{})
+    }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json().catch(function(){return null;}); });
+  }
+  function haConfigDelete(path){
+    var c = cfg();
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/"+path, {
+      method:"DELETE",
+      headers:{ "X-Api-Key": c.controlKey }
+    }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json().catch(function(){return null;}); });
+  }
+  function schedTargetOptions(){
+    var opts = [];
+    PLEJD_SITES.forEach(function(site){
+      site.rooms.forEach(function(room){
+        room.lights.forEach(function(l){
+          opts.push({ value:"light|"+l.id, label: site.name+" – "+room.label+" – "+l.name });
+        });
+      });
+    });
+    PLEJD_SCENES.forEach(function(sc){
+      opts.push({ value:"scene|"+sc.id, label:"Scene: "+sc.name });
+    });
+    return opts;
+  }
+  function updateSchedActionVisibility(){
+    $("schedActionRow").style.display = $("schedTarget").value.indexOf("scene|")===0 ? "none" : "";
+  }
+  function buildSchedForm(){
+    $("schedTarget").innerHTML = schedTargetOptions().map(function(o){
+      return '<option value="'+o.value+'">'+o.label+'</option>';
+    }).join("");
+    $("schedTarget").addEventListener("change", updateSchedActionVisibility);
+    updateSchedActionVisibility();
+  }
+  function loadSchedules(){
+    var list = $("schedList");
+    haGetAllStates().then(function(all){
+      var schedules = all.filter(function(e){
+        return e.entity_id.indexOf("automation.")===0 && (e.attributes.friendly_name||"").indexOf(SCHEDULE_PREFIX)===0;
+      });
+      if(!schedules.length){ list.innerHTML = '<div class="vrow"><span class="k">No schedules yet</span></div>'; return; }
+      list.innerHTML = schedules.map(function(a){
+        var name = (a.attributes.friendly_name||"").slice(SCHEDULE_PREFIX.length);
+        return '<div class="vrow"><span class="k">'+name+'</span>'+
+          '<span class="v"><button type="button" class="btn ghost small" data-del-sched="'+a.attributes.id+'">Delete</button></span></div>';
+      }).join("");
+      document.querySelectorAll("[data-del-sched]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          withBusy(haConfigDelete("config/automation/config/"+btn.getAttribute("data-del-sched")))
+            .then(function(){ toast("Schedule removed","ok"); loadSchedules(); })
+            .catch(function(err){ toast("Couldn't remove schedule: "+err.message,"err"); });
+        });
+      });
+    }).catch(function(){ list.innerHTML = '<div class="vrow"><span class="k">Couldn\'t load schedules</span></div>'; });
+  }
+  $("schedAddBtn").addEventListener("click", function(){
+    var raw = $("schedTarget").value;
+    var parts = raw.split("|");
+    var domain = parts[0], entity = parts[1];
+    var time = $("schedTime").value;
+    if(!time){ toast("Pick a time first","err"); return; }
+    var turnOn = $("schedAction").checked;
+    var label = $("schedTarget").options[$("schedTarget").selectedIndex].textContent;
+    var actionObj = domain === "scene"
+      ? { action:"scene.turn_on", target:{ entity_id: entity } }
+      : { action: turnOn ? "light.turn_on" : "light.turn_off", target:{ entity_id: entity } };
+    var slugId = "house_schedule_"+entity.replace(/[^a-z0-9]/gi,"_").toLowerCase()+"_"+time.replace(":","")+
+      (domain==="scene" ? "_act" : (turnOn?"_on":"_off"))+"_"+Date.now();
+    var alias = SCHEDULE_PREFIX+label+" "+(domain==="scene"?"(activate)":(turnOn?"(on)":"(off)"))+" at "+time;
+    var config = { alias: alias, triggers:[{ trigger:"time", at: time+":00" }], conditions:[], actions:[actionObj], mode:"single" };
+    withBusy(haConfigPost("config/automation/config/"+slugId, config))
+      .then(function(){
+        toast("Schedule added","ok");
+        setTimeout(loadSchedules, 3000); // HA needs a moment to register the new automation entity
+      })
+      .catch(function(err){ toast("Couldn't add schedule: "+err.message,"err"); });
+  });
+  buildSchedForm();
+  loadSchedules();
+
+  // Collapsible House cards - wraps everything after each card's <h2> into
+  // a toggleable body, generated at runtime rather than hand-editing every
+  // card's markup. Car page is untouched (only #page-house cards get this).
+  document.querySelectorAll("#page-house .card").forEach(function(card){
+    var h2 = card.querySelector("h2");
+    if(!h2) return;
+    var body = document.createElement("div");
+    body.className = "card-body";
+    var child = h2.nextSibling;
+    while(child){
+      var next = child.nextSibling;
+      body.appendChild(child);
+      child = next;
+    }
+    card.appendChild(body);
+    var chevron = document.createElement("span");
+    chevron.className = "card-chevron";
+    chevron.innerHTML = "&#9662;";
+    h2.appendChild(chevron);
+    h2.addEventListener("click", function(){ card.classList.toggle("collapsed"); });
+    card.classList.add("collapsed");
+  });
 
   function wireVolume(id, entity){
     $(id).addEventListener("input", function(){ $(id+"Val").textContent = this.value+"%"; });
@@ -1921,6 +2147,29 @@
   wireTts("sonosKitchen", EH.sonosKitchen);
 
   wireMediaButtons("sonosTv", EH.sonosTv);
+  // Doors: read-only battery/lock-state display was the original design,
+  // but the user asked for actual unlock/lock control - these are plain
+  // lock domain services, no PIN/control-server involvement needed (unlike
+  // the car's lock/unlock, which goes through byd-control for the BYD cloud).
+  function wireDoorLock(btnId, entity, service, label){
+    $(btnId).addEventListener("click", function(){
+      withBusy(haCall("lock", service, {entity_id: entity}))
+        .then(function(){ toast(label+" done","ok"); return refresh(); })
+        .catch(function(err){ toast(label+" failed: "+err.message,"err"); });
+    });
+  }
+  wireDoorLock("frontDoorUnlockBtn", EH.frontDoorLock, "unlock", "Unlock front door");
+  wireDoorLock("frontDoorLockBtn", EH.frontDoorLock, "lock", "Lock front door");
+  wireDoorLock("backDoorUnlockBtn", EH.backDoorLock, "unlock", "Unlock back door");
+  wireDoorLock("backDoorLockBtn", EH.backDoorLock, "lock", "Lock back door");
+  $("unlockBothDoorsBtn").addEventListener("click", function(){
+    withBusy(Promise.all([
+      haCall("lock","unlock",{entity_id:EH.frontDoorLock}),
+      haCall("lock","unlock",{entity_id:EH.backDoorLock})
+    ])).then(function(){ toast("Both doors unlocked","ok"); return refresh(); })
+      .catch(function(err){ toast("Couldn't open doors: "+err.message,"err"); });
+  });
+
   wireVolume("sonosTvVol", EH.sonosTv);
   wireMute("sonosTvMute", EH.sonosTv);
   wireSwitch("sonosTvLoudness", EH.sonosTvLoudness, "Loudness");
@@ -2154,6 +2403,7 @@
     refresh();
     loadCharges();
     loadElpris();
+    loadSchedules();
   });
 
   // ---- settings modal ----

@@ -1,7 +1,7 @@
 {
-  "name": "Annikas Car",
-  "short_name": "Annikas car",
-  "description": "BYD Atto 3 – battery, climate, lock and charging at a glance.",
+  "name": "Stormbull",
+  "short_name": "Stormbull",
+  "description": "Car & house at a glance – BYD Atto 3, Sonos, Plejd lighting, climate and more.",
   "start_url": "/byd-control/",
   "scope": "/byd-control/",
   "display": "standalone",
