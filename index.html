@@ -302,6 +302,12 @@
   .now-playing{font-size:13px;color:var(--muted);margin-bottom:10px}
   .now-playing b{color:var(--ink);font-weight:650}
   .media-row{display:flex;gap:8px;margin-bottom:14px}
+  .tts-row{display:flex;gap:8px;margin-bottom:12px}
+  .tts-row input[type=text]{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:8px 10px;font-size:13.5px;font-family:inherit;transition:border-color .2s ease}
+  .tts-row input[type=text]:focus{border-color:var(--accent)}
+  .tts-row .sel{width:56px;flex:none;padding:8px 6px}
+  .tts-row .btn.small.recording{background:var(--bad-soft);color:var(--bad)}
   .range-row{display:flex;flex-direction:column;gap:6px;padding:9px 0;border-bottom:1px dashed var(--line)}
   .range-row:last-child{border-bottom:none}
   .range-row .rr-top{display:flex;justify-content:space-between;font-size:13px}
@@ -642,6 +648,12 @@
         <div class="ctl-label"><div class="t">Mute</div></div>
         <label class="switch" id="sonosTvMuteWrap"><input type="checkbox" id="sonosTvMute"><span class="track"></span><span class="knob"></span></label>
       </div>
+      <div class="tts-row">
+        <input type="text" id="sonosTvTtsText" placeholder="Type or speak a message…">
+        <select class="sel" id="sonosTvTtsLang"><option value="sv">SV</option><option value="en">EN</option></select>
+        <button type="button" class="btn ghost small" id="sonosTvTtsMic" title="Voice to text">&#127908;</button>
+        <button type="button" class="btn ghost small" id="sonosTvTtsPlay">Play</button>
+      </div>
       <button class="btn ghost small" data-toggle="sonosTvMore" style="margin-top:10px">More settings</button>
       <div id="sonosTvMore" hidden style="margin-top:6px">
         <div class="ctl-row"><div class="ctl-label"><div class="t">Loudness</div></div><label class="switch" id="sonosTvLoudnessWrap"><input type="checkbox" id="sonosTvLoudness"><span class="track"></span><span class="knob"></span></label></div>
@@ -676,6 +688,12 @@
         <div class="ctl-label"><div class="t">Mute</div></div>
         <label class="switch" id="sonosKitchenMuteWrap"><input type="checkbox" id="sonosKitchenMute"><span class="track"></span><span class="knob"></span></label>
       </div>
+      <div class="tts-row">
+        <input type="text" id="sonosKitchenTtsText" placeholder="Type or speak a message…">
+        <select class="sel" id="sonosKitchenTtsLang"><option value="sv">SV</option><option value="en">EN</option></select>
+        <button type="button" class="btn ghost small" id="sonosKitchenTtsMic" title="Voice to text">&#127908;</button>
+        <button type="button" class="btn ghost small" id="sonosKitchenTtsPlay">Play</button>
+      </div>
       <button class="btn ghost small" data-toggle="sonosKitchenMore" style="margin-top:10px">More settings</button>
       <div id="sonosKitchenMore" hidden style="margin-top:6px">
         <div class="ctl-row"><div class="ctl-label"><div class="t">Loudness</div></div><label class="switch" id="sonosKitchenLoudnessWrap"><input type="checkbox" id="sonosKitchenLoudness"><span class="track"></span><span class="knob"></span></label></div>
@@ -685,6 +703,61 @@
         <div class="range-row"><div class="rr-top"><span class="k">Bass</span><span class="v" id="sonosKitchenBassVal">--</span></div><input type="range" id="sonosKitchenBass" min="-10" max="10" step="1"></div>
         <div class="range-row"><div class="rr-top"><span class="k">Treble</span><span class="v" id="sonosKitchenTrebleVal">--</span></div><input type="range" id="sonosKitchenTreble" min="-10" max="10" step="1"></div>
         <div class="range-row"><div class="rr-top"><span class="k">Balance</span><span class="v" id="sonosKitchenBalanceVal">--</span></div><input type="range" id="sonosKitchenBalance" min="-10" max="10" step="1"></div>
+      </div>
+    </div>
+
+    <div class="card c-wifi">
+      <h2>WiFi</h2>
+      <div class="grp-label">Main network</div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">2.4G</div></div><label class="switch" id="wifiMain24Wrap"><input type="checkbox" id="wifiMain24"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">5G</div></div><label class="switch" id="wifiMain5Wrap"><input type="checkbox" id="wifiMain5"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">6G</div></div><label class="switch" id="wifiMain6Wrap"><input type="checkbox" id="wifiMain6"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="grp-label">Guest network</div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">2.4G</div></div><label class="switch" id="wifiGuest24Wrap"><input type="checkbox" id="wifiGuest24"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">5G</div></div><label class="switch" id="wifiGuest5Wrap"><input type="checkbox" id="wifiGuest5"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">6G</div></div><label class="switch" id="wifiGuest6Wrap"><input type="checkbox" id="wifiGuest6"><span class="track"></span><span class="knob"></span></label></div>
+    </div>
+
+    <div class="card c-network">
+      <h2>Router &amp; network</h2>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Main WiFi clients</span><span class="v" id="netMainClients">--</span></div>
+        <div class="vrow"><span class="k">Guest WiFi clients</span><span class="v" id="netGuestClients">--</span></div>
+        <div class="vrow"><span class="k">Wired clients</span><span class="v" id="netWiredClients">--</span></div>
+        <div class="vrow"><span class="k">Total clients</span><span class="v" id="netTotalClients">--</span></div>
+        <div class="vrow"><span class="k">CPU used</span><span class="v" id="netCpu">--</span></div>
+        <div class="vrow"><span class="k">Memory used</span><span class="v" id="netMemory">--</span></div>
+        <div class="vrow"><span class="k">WAN IP</span><span class="v" id="netWanIp">--</span></div>
+        <div class="vrow"><span class="k">LAN IP</span><span class="v" id="netLanIp">--</span></div>
+        <div class="vrow"><span class="k">External IP</span><span class="v" id="netExternalIp">--</span></div>
+        <div class="vrow"><span class="k">Download speed</span><span class="v" id="netDownSpeed">--</span></div>
+        <div class="vrow"><span class="k">Upload speed</span><span class="v" id="netUpSpeed">--</span></div>
+      </div>
+    </div>
+
+    <div class="card c-doors">
+      <h2>Doors</h2>
+      <div class="chips" style="margin-bottom:10px" id="doorChips"></div>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Front door battery</span><span class="v" id="frontDoorBattery">--</span></div>
+        <div class="vrow"><span class="k">Back door battery</span><span class="v" id="backDoorBattery">--</span></div>
+      </div>
+    </div>
+
+    <div class="card c-price">
+      <h2>Electricity price</h2>
+      <div class="charge-price-row">
+        <span class="charge-price-now" id="housePriceNow">-- kr/kWh</span>
+        <span class="charge-price-sub">Nord Pool SE3, right now</span>
+      </div>
+    </div>
+
+    <div class="card c-backup">
+      <h2>HA Backup</h2>
+      <div class="chips" style="margin-bottom:10px" id="backupChips"></div>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Last successful</span><span class="v" id="backupLastSuccess">--</span></div>
+        <div class="vrow"><span class="k">Next scheduled</span><span class="v" id="backupNextScheduled">--</span></div>
       </div>
     </div>
 
@@ -723,60 +796,6 @@
         <div class="vrow"><span class="k">Target humidity</span><span class="v" id="daikinTargetHumidity">--</span></div>
         <div class="vrow"><span class="k">Compressor power</span><span class="v" id="daikinPowerConsumption">--</span></div>
         <div class="vrow"><span class="k">Energy consumption</span><span class="v" id="daikinEnergy">--</span></div>
-      </div>
-    </div>
-
-    <div class="card c-wifi">
-      <h2>WiFi</h2>
-      <div class="grp-label">Main network</div>
-      <div class="ctl-row"><div class="ctl-label"><div class="t">2.4G</div></div><label class="switch" id="wifiMain24Wrap"><input type="checkbox" id="wifiMain24"><span class="track"></span><span class="knob"></span></label></div>
-      <div class="ctl-row"><div class="ctl-label"><div class="t">5G</div></div><label class="switch" id="wifiMain5Wrap"><input type="checkbox" id="wifiMain5"><span class="track"></span><span class="knob"></span></label></div>
-      <div class="ctl-row"><div class="ctl-label"><div class="t">6G</div></div><label class="switch" id="wifiMain6Wrap"><input type="checkbox" id="wifiMain6"><span class="track"></span><span class="knob"></span></label></div>
-      <div class="grp-label">Guest network</div>
-      <div class="ctl-row"><div class="ctl-label"><div class="t">2.4G</div></div><label class="switch" id="wifiGuest24Wrap"><input type="checkbox" id="wifiGuest24"><span class="track"></span><span class="knob"></span></label></div>
-      <div class="ctl-row"><div class="ctl-label"><div class="t">5G</div></div><label class="switch" id="wifiGuest5Wrap"><input type="checkbox" id="wifiGuest5"><span class="track"></span><span class="knob"></span></label></div>
-      <div class="ctl-row"><div class="ctl-label"><div class="t">6G</div></div><label class="switch" id="wifiGuest6Wrap"><input type="checkbox" id="wifiGuest6"><span class="track"></span><span class="knob"></span></label></div>
-    </div>
-
-    <div class="card c-network">
-      <h2>Router &amp; network</h2>
-      <div class="vitals-list">
-        <div class="vrow"><span class="k">Main WiFi clients</span><span class="v" id="netMainClients">--</span></div>
-        <div class="vrow"><span class="k">Guest WiFi clients</span><span class="v" id="netGuestClients">--</span></div>
-        <div class="vrow"><span class="k">Wired clients</span><span class="v" id="netWiredClients">--</span></div>
-        <div class="vrow"><span class="k">Total clients</span><span class="v" id="netTotalClients">--</span></div>
-        <div class="vrow"><span class="k">CPU used</span><span class="v" id="netCpu">--</span></div>
-        <div class="vrow"><span class="k">Memory used</span><span class="v" id="netMemory">--</span></div>
-        <div class="vrow"><span class="k">WAN IP</span><span class="v" id="netWanIp">--</span></div>
-        <div class="vrow"><span class="k">LAN IP</span><span class="v" id="netLanIp">--</span></div>
-        <div class="vrow"><span class="k">External IP</span><span class="v" id="netExternalIp">--</span></div>
-        <div class="vrow"><span class="k">Download speed</span><span class="v" id="netDownSpeed">--</span></div>
-        <div class="vrow"><span class="k">Upload speed</span><span class="v" id="netUpSpeed">--</span></div>
-      </div>
-    </div>
-
-    <div class="card c-doors">
-      <h2>Doors</h2>
-      <div class="vitals-list">
-        <div class="vrow"><span class="k">Front door battery</span><span class="v" id="frontDoorBattery">--</span></div>
-        <div class="vrow"><span class="k">Back door battery</span><span class="v" id="backDoorBattery">--</span></div>
-      </div>
-    </div>
-
-    <div class="card c-price">
-      <h2>Electricity price</h2>
-      <div class="charge-price-row">
-        <span class="charge-price-now" id="housePriceNow">-- kr/kWh</span>
-        <span class="charge-price-sub">Nord Pool SE3, right now</span>
-      </div>
-    </div>
-
-    <div class="card c-backup">
-      <h2>HA Backup</h2>
-      <div class="chips" style="margin-bottom:10px" id="backupChips"></div>
-      <div class="vitals-list">
-        <div class="vrow"><span class="k">Last successful</span><span class="v" id="backupLastSuccess">--</span></div>
-        <div class="vrow"><span class="k">Next scheduled</span><span class="v" id="backupNextScheduled">--</span></div>
       </div>
     </div>
 
@@ -935,6 +954,8 @@
 
     frontDoorBattery: "sensor.front_door_battery",
     backDoorBattery: "sensor.back_door_battery",
+    frontDoorLock: "lock.front_door",
+    backDoorLock: "lock.back_door",
 
     nordPoolPrice: "sensor.nord_pool_se3_current_price",
 
@@ -1354,7 +1375,18 @@
     $("netDownSpeed").textContent = fmtVal(num(state[EH.netDownSpeed]), 1, " KiB/s");
     $("netUpSpeed").textContent = fmtVal(num(state[EH.netUpSpeed]), 1, " KiB/s");
 
-    // Doors (battery only - no lock/unlock control here)
+    // Doors - state shown read-only (no lock/unlock control here)
+    var doorChips = [];
+    var frontLock = state[EH.frontDoorLock], backLock = state[EH.backDoorLock];
+    if(frontLock){
+      var frontLocked = frontLock.state === "locked";
+      doorChips.push(chipHtml(frontLocked?"ok":"bad", frontLocked?"&#128274;":"&#128275;", "Front: "+(frontLocked?"Locked":"Unlocked")));
+    }
+    if(backLock){
+      var backLocked = backLock.state === "locked";
+      doorChips.push(chipHtml(backLocked?"ok":"bad", backLocked?"&#128274;":"&#128275;", "Back: "+(backLocked?"Locked":"Unlocked")));
+    }
+    $("doorChips").innerHTML = doorChips.join("");
     $("frontDoorBattery").textContent = fmtVal(num(state[EH.frontDoorBattery]), 0, "%");
     $("backDoorBattery").textContent = fmtVal(num(state[EH.backDoorBattery]), 0, "%");
 
@@ -1646,6 +1678,49 @@
         .then(refresh).catch(function(){ toast("Failed","err"); refresh(); });
     });
   }
+
+  // Voice-to-text -> play through a Sonos speaker via HA's tts.speak (same
+  // engine/call shape as the existing "Hello {name}" welcome-home
+  // automation: entity_id targets the TTS engine, media_player_entity_id
+  // is where it plays). Voice input uses the browser's Web Speech API -
+  // not supported in every browser, so the mic button just disables
+  // itself gracefully where it isn't (typing still works everywhere).
+  var TTS_ENTITY = "tts.google_translate_en_com";
+  function wireTts(prefix, entity){
+    var input = $(prefix+"TtsText"), micBtn = $(prefix+"TtsMic"), langSel = $(prefix+"TtsLang");
+    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+    if(!SpeechRec){
+      micBtn.disabled = true;
+      micBtn.title = "Voice input isn't supported in this browser - typing still works";
+    } else {
+      micBtn.addEventListener("click", function(){
+        if(recognition){ recognition.stop(); return; }
+        recognition = new SpeechRec();
+        recognition.lang = langSel.value === "sv" ? "sv-SE" : "en-US";
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        micBtn.classList.add("recording");
+        recognition.onresult = function(e){ input.value = e.results[0][0].transcript; };
+        recognition.onend = function(){ recognition = null; micBtn.classList.remove("recording"); };
+        recognition.onerror = function(){ recognition = null; micBtn.classList.remove("recording"); toast("Voice input failed","err"); };
+        recognition.start();
+      });
+    }
+    $(prefix+"TtsPlay").addEventListener("click", function(){
+      var msg = input.value.trim();
+      if(!msg){ toast("Type or speak something first","err"); return; }
+      withBusy(haCall("tts","speak",{
+        entity_id: TTS_ENTITY,
+        media_player_entity_id: entity,
+        message: msg,
+        language: langSel.value
+      })).then(function(){ toast("Playing…","ok"); })
+        .catch(function(err){ toast("Couldn't play: "+err.message,"err"); });
+    });
+  }
+  wireTts("sonosTv", EH.sonosTv);
+  wireTts("sonosKitchen", EH.sonosKitchen);
 
   wireMediaButtons("sonosTv", EH.sonosTv);
   wireVolume("sonosTvVol", EH.sonosTv);
