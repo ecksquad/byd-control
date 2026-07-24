@@ -176,11 +176,33 @@
   .c-price{grid-column:span 4}
   .c-backup{grid-column:span 4}
   .c-mower{grid-column:span 12}
+  .c-lighting{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
     .c-windows,.c-comfort,.c-history,
-    .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower{grid-column:span 12}
+    .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower,
+    .c-lighting{grid-column:span 12}
   }
+
+  /* Plejd lighting section */
+  .plejd-site-label{font-size:13px;font-weight:700;color:var(--ink);margin:16px 0 4px;padding-bottom:6px;
+    border-bottom:1px solid var(--line)}
+  .plejd-site-label:first-child{margin-top:0}
+  .plejd-room{margin-bottom:6px}
+  .plejd-room-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
+    font-weight:650;margin:10px 0 2px}
+  .plejd-light-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .plejd-light-row:last-child{border-bottom:none}
+  .plejd-light-name{flex:0 0 150px;font-size:13.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .plejd-light-bri{flex:1;min-width:0}
+  .plejd-light-bri input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:99px;
+    background:var(--line);outline:none}
+  .plejd-light-bri input[type=range]:disabled{opacity:.4}
+  .plejd-light-bri input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  .plejd-light-bri input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);
+    border:none;cursor:pointer}
+  .plejd-light-pct{flex:0 0 34px;text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 
   .charge-table-wrap{overflow-x:auto}
   table.charge-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
@@ -632,6 +654,12 @@
 
   <div class="page" id="page-house" hidden>
   <div class="grid">
+    <div class="card c-lighting">
+      <h2>Lighting — Plejd</h2>
+      <div class="chips" id="lightingScenes" style="margin-bottom:14px"></div>
+      <div id="lightingRooms"></div>
+    </div>
+
     <div class="card c-sonos-tv">
       <h2>Sonos — TV room</h2>
       <div class="now-playing" id="sonosTvNowPlaying">—</div>
@@ -974,6 +1002,85 @@
     mowerLensBrushLifespan: "sensor.ozzy_lens_brush_lifespan"
   };
 
+  // Plejd lighting (added 2026-07-24, entities discovered live from the two
+  // Plejd sites on the account - "stormbull" = main house, "cellar" = the
+  // basement level, both reachable over the HA host's own Bluetooth radio).
+  // Room grouping mirrors the room names Plejd's own app already uses.
+  var PLEJD_SITES = [
+    { name: "Stormbull (huset)", rooms: [
+      { label: "Entré", lights: [
+        { id: "light.entre_plan_0_minispottar_entre_plan_0", name: "Minispottar" },
+        { id: "light.entre_plan_0_spottar_tak_trappa", name: "Spottar tak trappa" }
+      ]},
+      { label: "Kontor", lights: [
+        { id: "light.kontor_tak", name: "Tak" },
+        { id: "light.kontor_fonster", name: "Fönster" }
+      ]},
+      { label: "Kök & matplats", lights: [
+        { id: "light.kok_matplats_hall", name: "Hall" },
+        { id: "light.kok_matplats_matsal", name: "Matsal" },
+        { id: "light.kok_matplats_oven_fan_light", name: "Oven fan light" },
+        { id: "light.kok_matplats_tak", name: "Tak" },
+        { id: "light.kok_matplats_cupboard_lights", name: "Cupboard lights" }
+      ]},
+      { label: "Utomhusbelysning", lights: [
+        { id: "light.utomhusbelysning_spot_lights_front", name: "Spot lights front" },
+        { id: "light.utomhusbelysning_lamp_front_deck", name: "Lamp front deck" },
+        { id: "light.utomhusbelysning_lamp_front_entrance", name: "Lamp front entrance" },
+        { id: "light.utomhusbelysning_lamps_rear_deck", name: "Lamps rear deck" },
+        { id: "light.utomhusbelysning_spot_lights_rear_deck", name: "Spot lights rear deck" },
+        { id: "light.utomhusbelysning_parkering", name: "Parkering" },
+        { id: "light.utomhusbelysning_lamp_deck_garage", name: "Lamp deck garage" }
+      ]},
+      { label: "Toalett", lights: [
+        { id: "light.toalett_spottar", name: "Spottar" },
+        { id: "light.toalett_spegel", name: "Spegel" }
+      ]},
+      { label: "Vardagsrum", lights: [
+        { id: "light.vardagsrum_side_lamp", name: "Side lamp", dimmable: false }
+      ]}
+    ]},
+    { name: "Cellar", rooms: [
+      { label: "Badrum", lights: [
+        { id: "light.badrum_spottar", name: "Spottar" },
+        { id: "light.badrum_bastu", name: "Bastu" }
+      ]},
+      { label: "Sovrum", lights: [
+        { id: "light.sovrum_spottar", name: "Spottar" }
+      ]},
+      { label: "Kök", lights: [
+        { id: "light.kok_spottar", name: "Spottar" }
+      ]},
+      { label: "Hall", lights: [
+        { id: "light.hall_spottar", name: "Spottar" },
+        { id: "light.hall_spot_vagg", name: "Spot vägg" }
+      ]},
+      { label: "Trapphus", lights: [
+        { id: "light.trapphus_spottar", name: "Spottar" }
+      ]},
+      { label: "Vardagsrum", lights: [
+        { id: "light.vardagsrum_spottar_tak", name: "Spottar tak" },
+        { id: "light.vardagsrum_spottar_vagg", name: "Spottar vägg" }
+      ]}
+    ]}
+  ];
+  var PLEJD_SCENES = [
+    { id: "scene.flakten", name: "Fläkten" },
+    { id: "scene.flakten_slack", name: "Fläkten släck" },
+    { id: "scene.rear_deck", name: "Rear deck" },
+    { id: "scene.ga", name: "Gå" }
+  ];
+  function plejdKey(entityId){ return "plejd_"+entityId.split(".")[1]; }
+  function allPlejdLightIds(){
+    var ids = [];
+    PLEJD_SITES.forEach(function(site){
+      site.rooms.forEach(function(room){
+        room.lights.forEach(function(l){ ids.push(l.id); });
+      });
+    });
+    return ids;
+  }
+
   function cfg(){
     var stored = null;
     try{ stored = JSON.parse(localStorage.getItem("carctrl_cfg")||"null"); }catch(e){}
@@ -1112,7 +1219,8 @@
 
   function fetchAll(){
     var ids = Object.keys(E).map(function(k){ return E[k]; })
-      .concat(Object.keys(EH).map(function(k){ return EH[k]; }));
+      .concat(Object.keys(EH).map(function(k){ return EH[k]; }))
+      .concat(allPlejdLightIds());
     return Promise.all(ids.map(function(id){
       return haGet(id).then(function(s){ return {id:id, s:s}; }).catch(function(){ return {id:id, s:null}; });
     })).then(function(results){
@@ -1325,7 +1433,31 @@
     }
   }
 
+  function renderLighting(){
+    PLEJD_SITES.forEach(function(site){
+      site.rooms.forEach(function(room){
+        room.lights.forEach(function(l){
+          var key = plejdKey(l.id);
+          var s = state[l.id];
+          var input = $(key), pctEl = $(key+"Pct"), briInput = $(key+"Bri");
+          var isOn = s && s.state === "on";
+          var available = s && s.state !== "unavailable";
+          if(document.activeElement !== input) input.checked = isOn;
+          input.disabled = !available;
+          if(briInput && l.dimmable !== false){
+            var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
+              ? Math.round(s.attributes.brightness/255*100) : 0;
+            if(document.activeElement !== briInput) briInput.value = pct;
+            briInput.disabled = !available || !isOn;
+            pctEl.textContent = available ? pct+"%" : "--";
+          }
+        });
+      });
+    });
+  }
+
   function renderHouse(){
+    renderLighting();
     renderSonosCard("sonosTv", EH.sonosTv, true);
     renderSonosCard("sonosKitchen", EH.sonosKitchen, false);
 
@@ -1640,6 +1772,72 @@
   });
 
   // ---- House page wiring ----
+
+  // Plejd lighting: DOM is generated from PLEJD_SITES/PLEJD_SCENES (data
+  // defined earlier alongside EH) rather than hand-written per light -
+  // there are ~26 lights across two sites, and this keeps it maintainable
+  // if more Plejd devices are added later.
+  function buildLightingUI(){
+    var roomsHtml = PLEJD_SITES.map(function(site){
+      var roomsInSite = site.rooms.map(function(room){
+        var rowsHtml = room.lights.map(function(l){
+          var key = plejdKey(l.id);
+          var dimmable = l.dimmable !== false;
+          return '<div class="plejd-light-row">'+
+            '<label class="switch"><input type="checkbox" id="'+key+'"><span class="track"></span><span class="knob"></span></label>'+
+            '<span class="plejd-light-name">'+l.name+'</span>'+
+            (dimmable
+              ? '<span class="plejd-light-bri"><input type="range" id="'+key+'Bri" min="1" max="100" step="1"></span>'+
+                '<span class="plejd-light-pct" id="'+key+'Pct">--</span>'
+              : '<span class="plejd-light-bri"></span><span class="plejd-light-pct"></span>')+
+          '</div>';
+        }).join("");
+        return '<div class="plejd-room"><div class="plejd-room-label">'+room.label+'</div>'+rowsHtml+'</div>';
+      }).join("");
+      return '<div class="plejd-site-label">'+site.name+'</div>'+roomsInSite;
+    }).join("");
+    $("lightingRooms").innerHTML = roomsHtml;
+
+    $("lightingScenes").innerHTML = PLEJD_SCENES.map(function(sc){
+      return '<button type="button" class="chip" data-scene="'+sc.id+'" style="cursor:pointer;border:none;font:inherit">'+
+        '<span class="ic">&#10024;</span><span>'+sc.name+'</span></button>';
+    }).join("");
+  }
+
+  function wireLighting(){
+    PLEJD_SITES.forEach(function(site){
+      site.rooms.forEach(function(room){
+        room.lights.forEach(function(l){
+          var key = plejdKey(l.id);
+          $(key).addEventListener("change", function(e){
+            var wantOn = e.target.checked;
+            withBusy(haCall("light", wantOn?"turn_on":"turn_off", {entity_id:l.id}))
+              .then(refresh).catch(function(err){ toast("Couldn't change "+l.name+": "+err.message,"err"); e.target.checked=!wantOn; refresh(); });
+          });
+          var briInput = $(key+"Bri");
+          if(briInput){
+            briInput.addEventListener("input", function(e){ $(key+"Pct").textContent = e.target.value+"%"; });
+            briInput.addEventListener("change", function(e){
+              var pct = parseInt(e.target.value, 10);
+              withBusy(haCall("light","turn_on",{entity_id:l.id, brightness_pct: pct}))
+                .then(refresh).catch(function(err){ toast("Couldn't dim "+l.name+": "+err.message,"err"); refresh(); });
+            });
+          }
+        });
+      });
+    });
+    document.querySelectorAll("#lightingScenes [data-scene]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        withBusy(haCall("scene","turn_on",{entity_id: btn.getAttribute("data-scene")}))
+          .then(function(){ toast("Scene activated","ok"); refresh(); })
+          .catch(function(err){ toast("Couldn't activate scene: "+err.message,"err"); });
+      });
+    });
+  }
+
+  buildLightingUI();
+  wireLighting();
+
   function wireVolume(id, entity){
     $(id).addEventListener("input", function(){ $(id+"Val").textContent = this.value+"%"; });
     $(id).addEventListener("change", function(){
