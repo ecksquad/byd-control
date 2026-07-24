@@ -165,9 +165,21 @@
   .c-windows{grid-column:span 6}
   .c-comfort{grid-column:span 6}
   .c-history{grid-column:span 12}
+
+  /* house page */
+  .c-sonos-tv{grid-column:span 6}
+  .c-sonos-kitchen{grid-column:span 6}
+  .c-daikin{grid-column:span 7}
+  .c-wifi{grid-column:span 5}
+  .c-network{grid-column:span 12}
+  .c-doors{grid-column:span 4}
+  .c-price{grid-column:span 4}
+  .c-backup{grid-column:span 4}
+  .c-mower{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
-    .c-windows,.c-comfort,.c-history{grid-column:span 12}
+    .c-windows,.c-comfort,.c-history,
+    .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower{grid-column:span 12}
   }
 
   .charge-table-wrap{overflow-x:auto}
@@ -207,7 +219,7 @@
     transition:background .15s ease}
   .temp-stepper button:hover{background:color-mix(in srgb, var(--accent) 16%, transparent)}
   .temp-stepper .val{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;min-width:52px;text-align:center}
-  .climate-duration{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+  .climate-duration,.sel{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
     padding:8px 10px;font-size:13.5px;font-family:inherit}
 
   .batt-hero{display:flex;flex-direction:column;gap:10px}
@@ -277,6 +289,31 @@
   .switch input:checked + .track + .knob{transform:translateX(19px);box-shadow:0 1px 3px rgba(0,0,0,.35),0 0 8px color-mix(in srgb, var(--accent) 65%, transparent)}
   .switch.disabled{opacity:.4;pointer-events:none}
   .switch:focus-within .track{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* page switcher (Car/House) */
+  .page[hidden]{display:none}
+  .pagesw-row{display:flex;justify-content:center;margin-bottom:18px}
+
+  /* house page primitives */
+  .disabled-group.is-off{opacity:.4;pointer-events:none}
+  .grp-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
+    margin:12px 0 2px;font-weight:650}
+  .grp-label:first-child{margin-top:0}
+  .now-playing{font-size:13px;color:var(--muted);margin-bottom:10px}
+  .now-playing b{color:var(--ink);font-weight:650}
+  .media-row{display:flex;gap:8px;margin-bottom:14px}
+  .range-row{display:flex;flex-direction:column;gap:6px;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .range-row:last-child{border-bottom:none}
+  .range-row .rr-top{display:flex;justify-content:space-between;font-size:13px}
+  .range-row .rr-top .k{color:var(--muted)}
+  .range-row .rr-top .v{font-weight:650;font-variant-numeric:tabular-nums}
+  .range-row input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:99px;
+    background:var(--line);outline:none}
+  .range-row input[type=range]:disabled{opacity:.4}
+  .range-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  .range-row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);
+    border:none;cursor:pointer}
 
   .btn{appearance:none;border:none;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:650;cursor:pointer;
     display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit;
@@ -368,6 +405,13 @@
     </div>
   </header>
 
+  <div class="pagesw-row">
+    <div class="seg" id="pageSwitch">
+      <button type="button" data-page="car" class="active">Car</button>
+      <button type="button" data-page="house">House</button>
+    </div>
+  </div>
+
   <div class="err-banner" id="setupBanner">
     <b>Set up your connection</b>
     <span>Click the gear icon (top right) and paste in your control server URL/key. Saved only in this browser, never sent anywhere else.</span>
@@ -380,6 +424,7 @@
     <span>&#9888;</span><span id="staleBannerText"></span>
   </div>
 
+  <div class="page" id="page-car">
   <div class="grid">
     <div class="card c-battery">
       <h2>Battery</h2>
@@ -577,6 +622,180 @@
       <div class="charge-note">Estimated from battery power &times; Nord Pool SE3 spot price during each charge — excludes grid fees, VAT and charging losses. Logged by the mirror since 7 Jul 2026.</div>
     </div>
   </div>
+  </div>
+
+  <div class="page" id="page-house" hidden>
+  <div class="grid">
+    <div class="card c-sonos-tv">
+      <h2>Sonos — TV room</h2>
+      <div class="now-playing" id="sonosTvNowPlaying">—</div>
+      <div class="media-row">
+        <button class="btn ghost small" id="sonosTvPlayPause">Play</button>
+        <button class="btn ghost small" id="sonosTvPrev">&#9198;</button>
+        <button class="btn ghost small" id="sonosTvNext">&#9197;</button>
+      </div>
+      <div class="range-row">
+        <div class="rr-top"><span class="k">Volume</span><span class="v" id="sonosTvVolVal">--%</span></div>
+        <input type="range" id="sonosTvVol" min="0" max="100" step="1">
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Mute</div></div>
+        <label class="switch" id="sonosTvMuteWrap"><input type="checkbox" id="sonosTvMute"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <button class="btn ghost small" data-toggle="sonosTvMore" style="margin-top:10px">More settings</button>
+      <div id="sonosTvMore" hidden style="margin-top:6px">
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Loudness</div></div><label class="switch" id="sonosTvLoudnessWrap"><input type="checkbox" id="sonosTvLoudness"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Crossfade</div></div><label class="switch" id="sonosTvCrossfadeWrap"><input type="checkbox" id="sonosTvCrossfade"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Night sound</div></div><label class="switch" id="sonosTvNightSoundWrap"><input type="checkbox" id="sonosTvNightSound"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Speech enhancement</div></div><label class="switch" id="sonosTvSpeechEnhWrap"><input type="checkbox" id="sonosTvSpeechEnh"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Surround enabled</div></div><label class="switch" id="sonosTvSurroundEnabledWrap"><input type="checkbox" id="sonosTvSurroundEnabled"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Surround full volume</div></div><label class="switch" id="sonosTvSurroundFullWrap"><input type="checkbox" id="sonosTvSurroundFull"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">TV autoplay</div></div><label class="switch" id="sonosTvAutoplayWrap"><input type="checkbox" id="sonosTvAutoplay"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Ungroup on autoplay</div></div><label class="switch" id="sonosTvUngroupAutoplayWrap"><input type="checkbox" id="sonosTvUngroupAutoplay"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Bass</span><span class="v" id="sonosTvBassVal">--</span></div><input type="range" id="sonosTvBass" min="-10" max="10" step="1"></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Treble</span><span class="v" id="sonosTvTrebleVal">--</span></div><input type="range" id="sonosTvTreble" min="-10" max="10" step="1"></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Balance</span><span class="v" id="sonosTvBalanceVal">--</span></div><input type="range" id="sonosTvBalance" min="-10" max="10" step="1"></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Surround level</span><span class="v" id="sonosTvSurroundLevelVal">--</span></div><input type="range" id="sonosTvSurroundLevel" min="-15" max="15" step="1"></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Music surround level</span><span class="v" id="sonosTvMusicSurroundLevelVal">--</span></div><input type="range" id="sonosTvMusicSurroundLevel" min="-15" max="15" step="1"></div>
+      </div>
+    </div>
+
+    <div class="card c-sonos-kitchen">
+      <h2>Sonos — Kitchen</h2>
+      <div class="now-playing" id="sonosKitchenNowPlaying">—</div>
+      <div class="media-row">
+        <button class="btn ghost small" id="sonosKitchenPlayPause">Play</button>
+        <button class="btn ghost small" id="sonosKitchenPrev">&#9198;</button>
+        <button class="btn ghost small" id="sonosKitchenNext">&#9197;</button>
+      </div>
+      <div class="range-row">
+        <div class="rr-top"><span class="k">Volume</span><span class="v" id="sonosKitchenVolVal">--%</span></div>
+        <input type="range" id="sonosKitchenVol" min="0" max="100" step="1">
+      </div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Mute</div></div>
+        <label class="switch" id="sonosKitchenMuteWrap"><input type="checkbox" id="sonosKitchenMute"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <button class="btn ghost small" data-toggle="sonosKitchenMore" style="margin-top:10px">More settings</button>
+      <div id="sonosKitchenMore" hidden style="margin-top:6px">
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Loudness</div></div><label class="switch" id="sonosKitchenLoudnessWrap"><input type="checkbox" id="sonosKitchenLoudness"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Crossfade</div></div><label class="switch" id="sonosKitchenCrossfadeWrap"><input type="checkbox" id="sonosKitchenCrossfade"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">TV autoplay</div></div><label class="switch" id="sonosKitchenAutoplayWrap"><input type="checkbox" id="sonosKitchenAutoplay"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="ctl-row"><div class="ctl-label"><div class="t">Ungroup on autoplay</div></div><label class="switch" id="sonosKitchenUngroupAutoplayWrap"><input type="checkbox" id="sonosKitchenUngroupAutoplay"><span class="track"></span><span class="knob"></span></label></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Bass</span><span class="v" id="sonosKitchenBassVal">--</span></div><input type="range" id="sonosKitchenBass" min="-10" max="10" step="1"></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Treble</span><span class="v" id="sonosKitchenTrebleVal">--</span></div><input type="range" id="sonosKitchenTreble" min="-10" max="10" step="1"></div>
+        <div class="range-row"><div class="rr-top"><span class="k">Balance</span><span class="v" id="sonosKitchenBalanceVal">--</span></div><input type="range" id="sonosKitchenBalance" min="-10" max="10" step="1"></div>
+      </div>
+    </div>
+
+    <div class="card c-daikin">
+      <h2>Climate — AC (Daikin)</h2>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Power</div></div>
+        <label class="switch" id="daikinPowerWrap"><input type="checkbox" id="daikinPower"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="disabled-group" id="daikinControlsGroup">
+        <div class="climate-row" style="margin-top:14px">
+          <div class="temp-stepper">
+            <button type="button" id="daikinTempDown" aria-label="Decrease temperature">&#8722;</button>
+            <span class="val"><span id="daikinTempVal">21</span>&deg;C</span>
+            <button type="button" id="daikinTempUp" aria-label="Increase temperature">&#43;</button>
+          </div>
+          <span class="chip neutral" id="daikinActionChip"><span class="ic">&#10052;</span><span>--</span></span>
+        </div>
+        <div class="grp-label">Mode</div>
+        <select class="sel" id="daikinHvacMode" style="width:100%;margin-bottom:10px"></select>
+        <div class="grp-label">Fan</div>
+        <select class="sel" id="daikinFanMode" style="width:100%;margin-bottom:10px"></select>
+        <div class="grp-label">Swing</div>
+        <select class="sel" id="daikinSwingMode" style="width:100%;margin-bottom:10px"></select>
+        <div class="grp-label">Preset</div>
+        <select class="sel" id="daikinPresetMode" style="width:100%"></select>
+      </div>
+      <div class="ctl-row" style="margin-top:6px">
+        <div class="ctl-label"><div class="t">Streamer</div></div>
+        <label class="switch" id="daikinStreamerWrap"><input type="checkbox" id="daikinStreamer"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="vitals-list" style="margin-top:6px">
+        <div class="vrow"><span class="k">Inside temp</span><span class="v" id="daikinInsideTemp">--</span></div>
+        <div class="vrow"><span class="k">Outside temp</span><span class="v" id="daikinOutsideTemp">--</span></div>
+        <div class="vrow"><span class="k">Humidity</span><span class="v" id="daikinHumidity">--</span></div>
+        <div class="vrow"><span class="k">Target humidity</span><span class="v" id="daikinTargetHumidity">--</span></div>
+        <div class="vrow"><span class="k">Compressor power</span><span class="v" id="daikinPowerConsumption">--</span></div>
+        <div class="vrow"><span class="k">Energy consumption</span><span class="v" id="daikinEnergy">--</span></div>
+      </div>
+    </div>
+
+    <div class="card c-wifi">
+      <h2>WiFi</h2>
+      <div class="grp-label">Main network</div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">2.4G</div></div><label class="switch" id="wifiMain24Wrap"><input type="checkbox" id="wifiMain24"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">5G</div></div><label class="switch" id="wifiMain5Wrap"><input type="checkbox" id="wifiMain5"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">6G</div></div><label class="switch" id="wifiMain6Wrap"><input type="checkbox" id="wifiMain6"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="grp-label">Guest network</div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">2.4G</div></div><label class="switch" id="wifiGuest24Wrap"><input type="checkbox" id="wifiGuest24"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">5G</div></div><label class="switch" id="wifiGuest5Wrap"><input type="checkbox" id="wifiGuest5"><span class="track"></span><span class="knob"></span></label></div>
+      <div class="ctl-row"><div class="ctl-label"><div class="t">6G</div></div><label class="switch" id="wifiGuest6Wrap"><input type="checkbox" id="wifiGuest6"><span class="track"></span><span class="knob"></span></label></div>
+    </div>
+
+    <div class="card c-network">
+      <h2>Router &amp; network</h2>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Main WiFi clients</span><span class="v" id="netMainClients">--</span></div>
+        <div class="vrow"><span class="k">Guest WiFi clients</span><span class="v" id="netGuestClients">--</span></div>
+        <div class="vrow"><span class="k">Wired clients</span><span class="v" id="netWiredClients">--</span></div>
+        <div class="vrow"><span class="k">Total clients</span><span class="v" id="netTotalClients">--</span></div>
+        <div class="vrow"><span class="k">CPU used</span><span class="v" id="netCpu">--</span></div>
+        <div class="vrow"><span class="k">Memory used</span><span class="v" id="netMemory">--</span></div>
+        <div class="vrow"><span class="k">WAN IP</span><span class="v" id="netWanIp">--</span></div>
+        <div class="vrow"><span class="k">LAN IP</span><span class="v" id="netLanIp">--</span></div>
+        <div class="vrow"><span class="k">External IP</span><span class="v" id="netExternalIp">--</span></div>
+        <div class="vrow"><span class="k">Download speed</span><span class="v" id="netDownSpeed">--</span></div>
+        <div class="vrow"><span class="k">Upload speed</span><span class="v" id="netUpSpeed">--</span></div>
+      </div>
+    </div>
+
+    <div class="card c-doors">
+      <h2>Doors</h2>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Front door battery</span><span class="v" id="frontDoorBattery">--</span></div>
+        <div class="vrow"><span class="k">Back door battery</span><span class="v" id="backDoorBattery">--</span></div>
+      </div>
+    </div>
+
+    <div class="card c-price">
+      <h2>Electricity price</h2>
+      <div class="charge-price-row">
+        <span class="charge-price-now" id="housePriceNow">-- kr/kWh</span>
+        <span class="charge-price-sub">Nord Pool SE3, right now</span>
+      </div>
+    </div>
+
+    <div class="card c-backup">
+      <h2>HA Backup</h2>
+      <div class="chips" style="margin-bottom:10px" id="backupChips"></div>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Last successful</span><span class="v" id="backupLastSuccess">--</span></div>
+        <div class="vrow"><span class="k">Next scheduled</span><span class="v" id="backupNextScheduled">--</span></div>
+      </div>
+    </div>
+
+    <div class="card c-mower">
+      <h2>Lawn mower — Ozzy</h2>
+      <div class="chips" style="margin-bottom:10px" id="mowerChips"></div>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Battery</span><span class="v" id="mowerBattery">--</span></div>
+        <div class="vrow"><span class="k">Area cleaned (today)</span><span class="v" id="mowerAreaCleaned">--</span></div>
+        <div class="vrow"><span class="k">Cleaning duration (today)</span><span class="v" id="mowerCleaningDuration">--</span></div>
+        <div class="vrow"><span class="k">Total area cleaned</span><span class="v" id="mowerTotalAreaCleaned">--</span></div>
+        <div class="vrow"><span class="k">Total cleaning duration</span><span class="v" id="mowerTotalCleaningDuration">--</span></div>
+        <div class="vrow"><span class="k">Total cleanings</span><span class="v" id="mowerTotalCleanings">--</span></div>
+        <div class="vrow"><span class="k">Blade lifespan</span><span class="v" id="mowerBladeLifespan">--</span></div>
+        <div class="vrow"><span class="k">Lens/brush lifespan</span><span class="v" id="mowerLensBrushLifespan">--</span></div>
+      </div>
+    </div>
+  </div>
+  </div>
 
   <footer>Polls every 20s through the control server &middot; lock/unlock/climate call BYD's cloud directly</footer>
 </div>
@@ -656,6 +875,82 @@
     repeatDaily: "switch."+VIN_PREFIX+"_repeat_daily",
     startTime: "time."+VIN_PREFIX+"_start_time",
     endTime: "time."+VIN_PREFIX+"_end_time"
+  };
+
+  // House page entities - separate map (not merged into E) so the car
+  // page's code/ids are never touched by this addition.
+  var EH = {
+    sonosTv: "media_player.tv_rum",
+    sonosTvCrossfade: "switch.tv_rum_crossfade",
+    sonosTvLoudness: "switch.tv_rum_loudness",
+    sonosTvNightSound: "switch.tv_rum_night_sound",
+    sonosTvSurroundFull: "switch.tv_rum_surround_music_full_volume",
+    sonosTvSpeechEnh: "switch.tv_rum_speech_enhancement",
+    sonosTvSurroundEnabled: "switch.tv_rum_surround_enabled",
+    sonosTvAutoplay: "switch.tv_rum_tv_autoplay",
+    sonosTvUngroupAutoplay: "switch.tv_rum_ungroup_on_autoplay",
+    sonosTvBass: "number.tv_rum_bass",
+    sonosTvTreble: "number.tv_rum_treble",
+    sonosTvBalance: "number.tv_rum_balance",
+    sonosTvSurroundLevel: "number.tv_rum_surround_level",
+    sonosTvMusicSurroundLevel: "number.tv_rum_music_surround_level",
+
+    sonosKitchen: "media_player.matrum",
+    sonosKitchenCrossfade: "switch.matrum_crossfade",
+    sonosKitchenLoudness: "switch.matrum_loudness",
+    sonosKitchenAutoplay: "switch.matrum_tv_autoplay",
+    sonosKitchenUngroupAutoplay: "switch.matrum_ungroup_on_autoplay",
+    sonosKitchenBass: "number.matrum_bass",
+    sonosKitchenTreble: "number.matrum_treble",
+    sonosKitchenBalance: "number.matrum_balance",
+
+    daikinClimate: "climate.daikin_living_room",
+    daikinPower: "switch.daikin_living_room_power",
+    daikinStreamer: "switch.daikin_living_room_streamer",
+    daikinInsideTemp: "sensor.daikin_living_room_inside_temperature",
+    daikinOutsideTemp: "sensor.daikin_living_room_outside_temperature",
+    daikinHumidity: "sensor.daikin_living_room_humidity",
+    daikinTargetHumidity: "sensor.daikin_living_room_target_humidity",
+    daikinPowerConsumption: "sensor.daikin_living_room_compressor_estimated_power_consumption",
+    daikinEnergy: "sensor.daikin_living_room_energy_consumption",
+
+    wifiMain24: "switch.tp_link_router_wifi_2_4g",
+    wifiMain5: "switch.tp_link_router_wifi_5g",
+    wifiMain6: "switch.tp_link_router_wifi_6g",
+    wifiGuest24: "switch.tp_link_router_guest_wifi_2_4g",
+    wifiGuest5: "switch.tp_link_router_guest_wifi_5g",
+    wifiGuest6: "switch.tp_link_router_guest_wifi_6g",
+
+    netMainClients: "sensor.tp_link_router_total_main_wifi_clients",
+    netGuestClients: "sensor.tp_link_router_total_guest_wifi_clients",
+    netWiredClients: "sensor.tp_link_router_total_wired_clients",
+    netTotalClients: "sensor.tp_link_router_total_clients",
+    netCpu: "sensor.tp_link_router_cpu_used",
+    netMemory: "sensor.tp_link_router_memory_used",
+    netWanIp: "sensor.tp_link_router_wan_ipv4_address",
+    netLanIp: "sensor.tp_link_router_lan_ipv4_address",
+    netExternalIp: "sensor.be65_external_ip",
+    netDownSpeed: "sensor.be65_download_speed",
+    netUpSpeed: "sensor.be65_upload_speed",
+
+    frontDoorBattery: "sensor.front_door_battery",
+    backDoorBattery: "sensor.back_door_battery",
+
+    nordPoolPrice: "sensor.nord_pool_se3_current_price",
+
+    backupState: "sensor.backup_backup_manager_state",
+    backupLastSuccess: "sensor.backup_last_successful_automatic_backup",
+    backupNextScheduled: "sensor.backup_next_scheduled_automatic_backup",
+
+    mower: "lawn_mower.ozzy",
+    mowerBattery: "sensor.ozzy_battery",
+    mowerAreaCleaned: "sensor.ozzy_area_cleaned",
+    mowerCleaningDuration: "sensor.ozzy_cleaning_duration",
+    mowerTotalAreaCleaned: "sensor.ozzy_total_area_cleaned",
+    mowerTotalCleaningDuration: "sensor.ozzy_total_cleaning_duration",
+    mowerTotalCleanings: "sensor.ozzy_total_cleanings",
+    mowerBladeLifespan: "sensor.ozzy_blade_lifespan",
+    mowerLensBrushLifespan: "sensor.ozzy_lens_brush_lifespan"
   };
 
   function cfg(){
@@ -791,14 +1086,18 @@
 
   var state = {}; // entity_id -> state object
   var lastFetchOk = true;
+  var lastFetchAt = null; // epoch ms of last successful fetchAll - feeds the House page's #lastUpdated
+  var activePage = "car";
 
   function fetchAll(){
-    var ids = Object.keys(E).map(function(k){ return E[k]; });
+    var ids = Object.keys(E).map(function(k){ return E[k]; })
+      .concat(Object.keys(EH).map(function(k){ return EH[k]; }));
     return Promise.all(ids.map(function(id){
       return haGet(id).then(function(s){ return {id:id, s:s}; }).catch(function(){ return {id:id, s:null}; });
     })).then(function(results){
       var anyOk = results.some(function(r){ return r.s !== null; });
       lastFetchOk = anyOk;
+      if(anyOk) lastFetchAt = Date.now();
       results.forEach(function(r){ state[r.id]=r.s; });
       return anyOk;
     });
@@ -812,6 +1111,16 @@
   }
 
   function render(){
+    renderChrome();
+    renderCar();
+    renderHouse();
+  }
+
+  // Header chrome (online pill / last-updated / stale banner) is shared
+  // across both pages but means something different on each - the car's
+  // pill/age reflect BYD telemetry freshness, the house page has no single
+  // equivalent so it falls back to plain HA-reachability (lastFetchOk).
+  function renderChrome(){
     var errB=$("errBanner");
     if(!lastFetchOk){
       $("errBannerText").textContent = "The last request failed — check the control server URL/key in settings, and that the control server is reachable from here.";
@@ -820,21 +1129,30 @@
       errB.classList.remove("show");
     }
 
-    var online = on(state[E.online]);
     var onlinePill = $("onlinePill");
-    onlinePill.className = "pill "+(online?"online":"offline");
-    onlinePill.querySelector("span:last-child").textContent = online ? "Online" : "Offline";
-
-    var telAge = state[E.telemetryUpdated] ? ageMinutes(state[E.telemetryUpdated].state) : Infinity;
-    $("lastUpdated").textContent = state[E.telemetryUpdated] ? "Telemetry "+fmtAge(state[E.telemetryUpdated].state) : "—";
-    var staleB=$("staleBanner");
-    if(telAge > 20){
-      $("staleBannerText").textContent = "Telemetry hasn't updated in "+Math.round(telAge)+" min — data below may be out of date.";
-      staleB.classList.add("show");
-    } else {
+    var staleB = $("staleBanner");
+    if(activePage === "house"){
+      onlinePill.className = "pill "+(lastFetchOk?"online":"offline");
+      onlinePill.querySelector("span:last-child").textContent = lastFetchOk ? "Connected" : "Unreachable";
+      $("lastUpdated").textContent = lastFetchAt ? "Updated "+fmtAge(lastFetchAt) : "—";
       staleB.classList.remove("show");
-    }
+    } else {
+      var online = on(state[E.online]);
+      onlinePill.className = "pill "+(online?"online":"offline");
+      onlinePill.querySelector("span:last-child").textContent = online ? "Online" : "Offline";
 
+      var telAge = state[E.telemetryUpdated] ? ageMinutes(state[E.telemetryUpdated].state) : Infinity;
+      $("lastUpdated").textContent = state[E.telemetryUpdated] ? "Telemetry "+fmtAge(state[E.telemetryUpdated].state) : "—";
+      if(telAge > 20){
+        $("staleBannerText").textContent = "Telemetry hasn't updated in "+Math.round(telAge)+" min — data below may be out of date.";
+        staleB.classList.add("show");
+      } else {
+        staleB.classList.remove("show");
+      }
+    }
+  }
+
+  function renderCar(){
     // battery bar over the car photo
     var battery = num(state[E.battery]);
     var pct = battery!==null ? Math.max(0,Math.min(100,battery)) : null;
@@ -920,6 +1238,157 @@
     $("freeChargeBtn").disabled = busy;
 
     renderElpris(); // recompute "cost to fill" against the freshest battery %
+  }
+
+  // ---- House page render helpers ----
+  function fmtVal(v, decimals, unit){
+    if(v===null || v===undefined) return "--";
+    return (decimals ? v.toFixed(decimals) : Math.round(v))+(unit||"");
+  }
+  function setVolumeUI(id, mp){
+    var input = $(id), val = $(id+"Val");
+    if(document.activeElement===input) return;
+    if(!mp || typeof mp.attributes.volume_level !== "number"){ input.disabled=true; val.textContent="--"; return; }
+    input.disabled=false;
+    var v = Math.round(mp.attributes.volume_level*100);
+    input.value=v; val.textContent=v+"%";
+  }
+  function setNumberRangeUI(id, s){
+    var input=$(id), val=$(id+"Val");
+    if(document.activeElement===input) return;
+    if(!s || s.state==="unavailable" || s.state==="unknown"){ input.disabled=true; val.textContent="--"; return; }
+    input.disabled=false;
+    if(s.attributes){
+      if(typeof s.attributes.min==="number") input.min=s.attributes.min;
+      if(typeof s.attributes.max==="number") input.max=s.attributes.max;
+      if(typeof s.attributes.step==="number") input.step=s.attributes.step;
+    }
+    var v = parseFloat(s.state);
+    input.value=v; val.textContent=v;
+  }
+  function populateSelect(id, options, current){
+    var sel = $(id);
+    if(!options || !options.length){ sel.disabled = true; return; }
+    sel.disabled = false;
+    if(document.activeElement === sel) return;
+    var optsHtml = options.map(function(o){ return '<option value="'+o+'"'+(o===current?' selected':'')+'>'+o+'</option>'; }).join("");
+    if(sel.getAttribute("data-opts") !== optsHtml){ sel.innerHTML = optsHtml; sel.setAttribute("data-opts", optsHtml); }
+    sel.value = current;
+  }
+  function renderSonosCard(prefix, entity, hasSoundbar){
+    var mp = state[entity];
+    var np = $(prefix+"NowPlaying");
+    if(mp){
+      var title = mp.attributes && (mp.attributes.media_title || mp.attributes.media_channel);
+      np.textContent = title ? title : (mp.state==="idle" ? "Idle" : mp.state);
+    } else {
+      np.textContent = "--";
+    }
+    $(prefix+"PlayPause").textContent = (mp && mp.state==="playing") ? "Pause" : "Play";
+    setVolumeUI(prefix+"Vol", mp);
+    setSwitchUI(prefix+"Mute", prefix+"MuteWrap", mp ? {state: (mp.attributes && mp.attributes.is_volume_muted) ? "on":"off"} : null);
+    setSwitchUI(prefix+"Loudness", prefix+"LoudnessWrap", state[EH[prefix+"Loudness"]]);
+    setSwitchUI(prefix+"Crossfade", prefix+"CrossfadeWrap", state[EH[prefix+"Crossfade"]]);
+    setSwitchUI(prefix+"Autoplay", prefix+"AutoplayWrap", state[EH[prefix+"Autoplay"]]);
+    setSwitchUI(prefix+"UngroupAutoplay", prefix+"UngroupAutoplayWrap", state[EH[prefix+"UngroupAutoplay"]]);
+    setNumberRangeUI(prefix+"Bass", state[EH[prefix+"Bass"]]);
+    setNumberRangeUI(prefix+"Treble", state[EH[prefix+"Treble"]]);
+    setNumberRangeUI(prefix+"Balance", state[EH[prefix+"Balance"]]);
+    if(hasSoundbar){
+      setSwitchUI(prefix+"NightSound", prefix+"NightSoundWrap", state[EH[prefix+"NightSound"]]);
+      setSwitchUI(prefix+"SpeechEnh", prefix+"SpeechEnhWrap", state[EH[prefix+"SpeechEnh"]]);
+      setSwitchUI(prefix+"SurroundEnabled", prefix+"SurroundEnabledWrap", state[EH[prefix+"SurroundEnabled"]]);
+      setSwitchUI(prefix+"SurroundFull", prefix+"SurroundFullWrap", state[EH[prefix+"SurroundFull"]]);
+      setNumberRangeUI(prefix+"SurroundLevel", state[EH[prefix+"SurroundLevel"]]);
+      setNumberRangeUI(prefix+"MusicSurroundLevel", state[EH[prefix+"MusicSurroundLevel"]]);
+    }
+  }
+
+  function renderHouse(){
+    renderSonosCard("sonosTv", EH.sonosTv, true);
+    renderSonosCard("sonosKitchen", EH.sonosKitchen, false);
+
+    // Daikin AC
+    var ac = state[EH.daikinClimate];
+    var acPowerOn = on(state[EH.daikinPower]);
+    setSwitchUI("daikinPower", "daikinPowerWrap", state[EH.daikinPower]);
+    setSwitchUI("daikinStreamer", "daikinStreamerWrap", state[EH.daikinStreamer]);
+    $("daikinControlsGroup").classList.toggle("is-off", !acPowerOn);
+    if(ac && ac.attributes){
+      $("daikinTempVal").textContent = (typeof ac.attributes.temperature==="number") ? ac.attributes.temperature : "--";
+      var hvacModes = (ac.attributes.hvac_modes||[]).filter(function(m){ return m!=="off"; });
+      populateSelect("daikinHvacMode", hvacModes, ac.attributes.hvac_mode);
+      populateSelect("daikinFanMode", ac.attributes.fan_modes||[], ac.attributes.fan_mode);
+      populateSelect("daikinSwingMode", ac.attributes.swing_modes||[], ac.attributes.swing_mode);
+      populateSelect("daikinPresetMode", ac.attributes.preset_modes||[], ac.attributes.preset_mode);
+      var actionChip = $("daikinActionChip");
+      var action = ac.attributes.hvac_action || ac.state;
+      actionChip.className = "chip "+(action==="off"?"neutral":"ok");
+      actionChip.querySelector("span:last-child").textContent = action;
+    }
+    animateNumber("daikinInsideTemp", num(state[EH.daikinInsideTemp]), 1, "°C");
+    animateNumber("daikinOutsideTemp", num(state[EH.daikinOutsideTemp]), 1, "°C");
+    animateNumber("daikinHumidity", num(state[EH.daikinHumidity]), 0, "%");
+    animateNumber("daikinTargetHumidity", num(state[EH.daikinTargetHumidity]), 0, "%");
+    animateNumber("daikinPowerConsumption", num(state[EH.daikinPowerConsumption]), 2, " kW");
+    animateNumber("daikinEnergy", num(state[EH.daikinEnergy]), 0, " kWh");
+
+    // WiFi
+    setSwitchUI("wifiMain24", "wifiMain24Wrap", state[EH.wifiMain24]);
+    setSwitchUI("wifiMain5", "wifiMain5Wrap", state[EH.wifiMain5]);
+    setSwitchUI("wifiMain6", "wifiMain6Wrap", state[EH.wifiMain6]);
+    setSwitchUI("wifiGuest24", "wifiGuest24Wrap", state[EH.wifiGuest24]);
+    setSwitchUI("wifiGuest5", "wifiGuest5Wrap", state[EH.wifiGuest5]);
+    setSwitchUI("wifiGuest6", "wifiGuest6Wrap", state[EH.wifiGuest6]);
+
+    // Router & network
+    $("netMainClients").textContent = fmtVal(num(state[EH.netMainClients]));
+    $("netGuestClients").textContent = fmtVal(num(state[EH.netGuestClients]));
+    $("netWiredClients").textContent = fmtVal(num(state[EH.netWiredClients]));
+    $("netTotalClients").textContent = fmtVal(num(state[EH.netTotalClients]));
+    $("netCpu").textContent = fmtVal(num(state[EH.netCpu]), 0, "%");
+    $("netMemory").textContent = fmtVal(num(state[EH.netMemory]), 0, "%");
+    $("netWanIp").textContent = (state[EH.netWanIp] && state[EH.netWanIp].state) || "--";
+    $("netLanIp").textContent = (state[EH.netLanIp] && state[EH.netLanIp].state) || "--";
+    $("netExternalIp").textContent = (state[EH.netExternalIp] && state[EH.netExternalIp].state) || "--";
+    $("netDownSpeed").textContent = fmtVal(num(state[EH.netDownSpeed]), 1, " KiB/s");
+    $("netUpSpeed").textContent = fmtVal(num(state[EH.netUpSpeed]), 1, " KiB/s");
+
+    // Doors (battery only - no lock/unlock control here)
+    $("frontDoorBattery").textContent = fmtVal(num(state[EH.frontDoorBattery]), 0, "%");
+    $("backDoorBattery").textContent = fmtVal(num(state[EH.backDoorBattery]), 0, "%");
+
+    // Electricity price
+    var price = num(state[EH.nordPoolPrice]);
+    $("housePriceNow").textContent = price!==null ? price.toFixed(2)+" kr/kWh" : "-- kr/kWh";
+
+    // HA Backup
+    var bState = state[EH.backupState];
+    var backupChips = [];
+    if(bState){
+      var bKind = bState.state==="idle" ? "ok" : (bState.state==="error" ? "bad" : "neutral");
+      backupChips.push(chipHtml(bKind, "&#128190;", bState.state));
+    }
+    $("backupChips").innerHTML = backupChips.join("");
+    $("backupLastSuccess").textContent = state[EH.backupLastSuccess] && state[EH.backupLastSuccess].state ? fmtChargeDate(state[EH.backupLastSuccess].state) : "--";
+    $("backupNextScheduled").textContent = state[EH.backupNextScheduled] && state[EH.backupNextScheduled].state ? fmtChargeDate(state[EH.backupNextScheduled].state) : "--";
+
+    // Lawn mower - degrades to "--" automatically via num()/animateNumber() while unavailable
+    var mowerState = state[EH.mower];
+    var mowerChips = [];
+    if(mowerState){
+      var mKind = (mowerState.state==="unavailable"||mowerState.state==="unknown") ? "neutral" : "ok";
+      mowerChips.push(chipHtml(mKind, "&#127807;", mowerState.state));
+    }
+    $("mowerChips").innerHTML = mowerChips.join("");
+    animateNumber("mowerBattery", num(state[EH.mowerBattery]), 0, "%");
+    animateNumber("mowerAreaCleaned", num(state[EH.mowerAreaCleaned]), 0, " m²");
+    animateNumber("mowerCleaningDuration", num(state[EH.mowerCleaningDuration]), 0, " min");
+    animateNumber("mowerTotalAreaCleaned", num(state[EH.mowerTotalAreaCleaned]), 0, " ft²");
+    animateNumber("mowerTotalCleaningDuration", num(state[EH.mowerTotalCleaningDuration]), 0, " h");
+    animateNumber("mowerTotalCleanings", num(state[EH.mowerTotalCleanings]), 0, "");
+    animateNumber("mowerBladeLifespan", num(state[EH.mowerBladeLifespan]), 0, "%");
+    animateNumber("mowerLensBrushLifespan", num(state[EH.mowerLensBrushLifespan]), 0, "%");
   }
 
   function chipHtml(kind, icon, label){
@@ -1137,6 +1606,156 @@
     ])).then(function(){ toast("Schedule window updated","ok"); return refresh(); })
       .catch(function(){ toast("Couldn't update schedule","err"); refresh(); });
   });
+
+  // ---- House page wiring ----
+  function wireVolume(id, entity){
+    $(id).addEventListener("input", function(){ $(id+"Val").textContent = this.value+"%"; });
+    $(id).addEventListener("change", function(){
+      withBusy(haCall("media_player","volume_set",{entity_id:entity, volume_level: parseFloat(this.value)/100}))
+        .then(refresh).catch(function(err){ toast("Couldn't set volume: "+err.message,"err"); refresh(); });
+    });
+  }
+  function wireNumberRange(id, entity){
+    $(id).addEventListener("input", function(){ $(id+"Val").textContent = this.value; });
+    $(id).addEventListener("change", function(){
+      withBusy(haCall("number","set_value",{entity_id:entity, value: parseFloat(this.value)}))
+        .then(refresh).catch(function(err){ toast("Couldn't update: "+err.message,"err"); refresh(); });
+    });
+  }
+  function wireMute(id, entity){
+    $(id).addEventListener("change", function(e){
+      var wantMute = e.target.checked;
+      withBusy(haCall("media_player","volume_mute",{entity_id:entity, is_volume_muted: wantMute}))
+        .then(function(){ toast("Mute "+(wantMute?"on":"off"),"ok"); return refresh(); })
+        .catch(function(err){ toast("Couldn't mute: "+err.message,"err"); e.target.checked=!wantMute; refresh(); });
+    });
+  }
+  function wireMediaButtons(prefix, entity){
+    $(prefix+"PlayPause").addEventListener("click", function(){
+      var s = state[entity];
+      var svc = (s && s.state==="playing") ? "media_pause" : "media_play";
+      withBusy(haCall("media_player", svc, {entity_id: entity}))
+        .then(refresh).catch(function(err){ toast("Playback failed: "+err.message,"err"); refresh(); });
+    });
+    $(prefix+"Prev").addEventListener("click", function(){
+      withBusy(haCall("media_player","media_previous_track",{entity_id:entity}))
+        .then(refresh).catch(function(){ toast("Failed","err"); refresh(); });
+    });
+    $(prefix+"Next").addEventListener("click", function(){
+      withBusy(haCall("media_player","media_next_track",{entity_id:entity}))
+        .then(refresh).catch(function(){ toast("Failed","err"); refresh(); });
+    });
+  }
+
+  wireMediaButtons("sonosTv", EH.sonosTv);
+  wireVolume("sonosTvVol", EH.sonosTv);
+  wireMute("sonosTvMute", EH.sonosTv);
+  wireSwitch("sonosTvLoudness", EH.sonosTvLoudness, "Loudness");
+  wireSwitch("sonosTvCrossfade", EH.sonosTvCrossfade, "Crossfade");
+  wireSwitch("sonosTvNightSound", EH.sonosTvNightSound, "Night sound");
+  wireSwitch("sonosTvSpeechEnh", EH.sonosTvSpeechEnh, "Speech enhancement");
+  wireSwitch("sonosTvSurroundEnabled", EH.sonosTvSurroundEnabled, "Surround enabled");
+  wireSwitch("sonosTvSurroundFull", EH.sonosTvSurroundFull, "Surround full volume");
+  wireSwitch("sonosTvAutoplay", EH.sonosTvAutoplay, "TV autoplay");
+  wireSwitch("sonosTvUngroupAutoplay", EH.sonosTvUngroupAutoplay, "Ungroup on autoplay");
+  wireNumberRange("sonosTvBass", EH.sonosTvBass);
+  wireNumberRange("sonosTvTreble", EH.sonosTvTreble);
+  wireNumberRange("sonosTvBalance", EH.sonosTvBalance);
+  wireNumberRange("sonosTvSurroundLevel", EH.sonosTvSurroundLevel);
+  wireNumberRange("sonosTvMusicSurroundLevel", EH.sonosTvMusicSurroundLevel);
+
+  wireMediaButtons("sonosKitchen", EH.sonosKitchen);
+  wireVolume("sonosKitchenVol", EH.sonosKitchen);
+  wireMute("sonosKitchenMute", EH.sonosKitchen);
+  wireSwitch("sonosKitchenLoudness", EH.sonosKitchenLoudness, "Loudness");
+  wireSwitch("sonosKitchenCrossfade", EH.sonosKitchenCrossfade, "Crossfade");
+  wireSwitch("sonosKitchenAutoplay", EH.sonosKitchenAutoplay, "TV autoplay");
+  wireSwitch("sonosKitchenUngroupAutoplay", EH.sonosKitchenUngroupAutoplay, "Ungroup on autoplay");
+  wireNumberRange("sonosKitchenBass", EH.sonosKitchenBass);
+  wireNumberRange("sonosKitchenTreble", EH.sonosKitchenTreble);
+  wireNumberRange("sonosKitchenBalance", EH.sonosKitchenBalance);
+
+  // disclosure toggles ("More settings" / "Hide settings")
+  document.querySelectorAll("[data-toggle]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var target = $(btn.getAttribute("data-toggle"));
+      target.hidden = !target.hidden;
+      btn.textContent = target.hidden ? "More settings" : "Hide settings";
+    });
+  });
+
+  // Daikin AC: power drives switch.daikin_living_room_power (same idiom as
+  // every other on/off control here) - NOT climate.turn_on/set_hvac_mode -
+  // so there's exactly one on/off mechanism, not two fighting over state.
+  wireSwitch("daikinPower", EH.daikinPower, "AC power");
+  wireSwitch("daikinStreamer", EH.daikinStreamer, "AC streamer");
+
+  function daikinStep(delta){
+    var s = state[EH.daikinClimate];
+    var attrs = (s && s.attributes) || {};
+    var cur = typeof attrs.temperature==="number" ? attrs.temperature : 21;
+    var min = typeof attrs.min_temp==="number" ? attrs.min_temp : 7;
+    var max = typeof attrs.max_temp==="number" ? attrs.max_temp : 35;
+    var next = Math.max(min, Math.min(max, cur + delta));
+    $("daikinTempVal").textContent = next;
+    withBusy(haCall("climate","set_temperature",{entity_id:EH.daikinClimate, temperature: next}))
+      .then(refresh).catch(function(err){ toast("Couldn't set AC temp: "+err.message,"err"); refresh(); });
+  }
+  $("daikinTempDown").addEventListener("click", function(){
+    var s = state[EH.daikinClimate];
+    var step = (s && s.attributes && s.attributes.target_temp_step) || 1;
+    daikinStep(-step);
+  });
+  $("daikinTempUp").addEventListener("click", function(){
+    var s = state[EH.daikinClimate];
+    var step = (s && s.attributes && s.attributes.target_temp_step) || 1;
+    daikinStep(step);
+  });
+  $("daikinHvacMode").addEventListener("change", function(){
+    withBusy(haCall("climate","set_hvac_mode",{entity_id:EH.daikinClimate, hvac_mode:this.value}))
+      .then(refresh).catch(function(err){ toast("Couldn't set mode: "+err.message,"err"); refresh(); });
+  });
+  $("daikinFanMode").addEventListener("change", function(){
+    withBusy(haCall("climate","set_fan_mode",{entity_id:EH.daikinClimate, fan_mode:this.value}))
+      .then(refresh).catch(function(err){ toast("Couldn't set fan: "+err.message,"err"); refresh(); });
+  });
+  $("daikinSwingMode").addEventListener("change", function(){
+    withBusy(haCall("climate","set_swing_mode",{entity_id:EH.daikinClimate, swing_mode:this.value}))
+      .then(refresh).catch(function(err){ toast("Couldn't set swing: "+err.message,"err"); refresh(); });
+  });
+  $("daikinPresetMode").addEventListener("change", function(){
+    withBusy(haCall("climate","set_preset_mode",{entity_id:EH.daikinClimate, preset_mode:this.value}))
+      .then(refresh).catch(function(err){ toast("Couldn't set preset: "+err.message,"err"); refresh(); });
+  });
+
+  // WiFi bands - IoT bands omitted entirely (unavailable/not provisioned on
+  // the router, nothing to toggle)
+  wireSwitch("wifiMain24", EH.wifiMain24, "Main 2.4G WiFi");
+  wireSwitch("wifiMain5", EH.wifiMain5, "Main 5G WiFi");
+  wireSwitch("wifiMain6", EH.wifiMain6, "Main 6G WiFi");
+  wireSwitch("wifiGuest24", EH.wifiGuest24, "Guest 2.4G WiFi");
+  wireSwitch("wifiGuest5", EH.wifiGuest5, "Guest 5G WiFi");
+  wireSwitch("wifiGuest6", EH.wifiGuest6, "Guest 6G WiFi");
+
+  // ---- Car/House page switcher ----
+  var PAGES = ["car","house"];
+  function showPage(name){
+    if(PAGES.indexOf(name)===-1) name="car";
+    $("page-car").hidden = name!=="car";
+    $("page-house").hidden = name!=="house";
+    document.querySelectorAll("#pageSwitch button").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-page")===name);
+    });
+    activePage = name;
+    try{ localStorage.setItem("carctrl_page", name); }catch(e){}
+    render();
+  }
+  document.querySelectorAll("#pageSwitch button").forEach(function(b){
+    b.addEventListener("click", function(){ showPage(b.getAttribute("data-page")); });
+  });
+  // Default to "car" (not whatever was last stored) so existing installed/
+  // home-screen users land on the page they already know after this ships.
+  showPage("car");
 
   // ---- previous charges table (log kept by the mirror, served by the control server) ----
   function fmtDur(ms){
