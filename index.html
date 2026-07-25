@@ -803,10 +803,13 @@
         <div class="eq-bars" id="sonosTvEq"><i></i><i></i><i></i></div>
       </div>
       <div class="media-row">
-        <button class="btn ghost small" id="sonosTvPlayPause">Play</button>
+        <button class="btn ghost small" id="sonosTvPlay">&#9654; Play</button>
+        <button class="btn ghost small" id="sonosTvPause">&#10074;&#10074; Pause</button>
         <button class="btn ghost small" id="sonosTvPrev">&#9198;</button>
         <button class="btn ghost small" id="sonosTvNext">&#9197;</button>
       </div>
+      <div class="grp-label">Radio</div>
+      <div class="chips" id="sonosTvRadio" style="margin-bottom:14px"></div>
       <div class="range-row">
         <div class="rr-top"><span class="k">Volume</span><span class="v" id="sonosTvVolVal">--%</span></div>
         <input type="range" id="sonosTvVol" min="0" max="100" step="1">
@@ -850,10 +853,13 @@
         <div class="eq-bars" id="sonosKitchenEq"><i></i><i></i><i></i></div>
       </div>
       <div class="media-row">
-        <button class="btn ghost small" id="sonosKitchenPlayPause">Play</button>
+        <button class="btn ghost small" id="sonosKitchenPlay">&#9654; Play</button>
+        <button class="btn ghost small" id="sonosKitchenPause">&#10074;&#10074; Pause</button>
         <button class="btn ghost small" id="sonosKitchenPrev">&#9198;</button>
         <button class="btn ghost small" id="sonosKitchenNext">&#9197;</button>
       </div>
+      <div class="grp-label">Radio</div>
+      <div class="chips" id="sonosKitchenRadio" style="margin-bottom:14px"></div>
       <div class="range-row">
         <div class="rr-top"><span class="k">Volume</span><span class="v" id="sonosKitchenVolVal">--%</span></div>
         <input type="range" id="sonosKitchenVol" min="0" max="100" step="1">
@@ -1649,7 +1655,8 @@
     }
     eq.classList.toggle("show", !!isPlaying);
     updateAlbumArt(prefix, mp);
-    $(prefix+"PlayPause").textContent = (mp && mp.state==="playing") ? "Pause" : "Play";
+    $(prefix+"Play").disabled = !!isPlaying;
+    $(prefix+"Pause").disabled = !isPlaying;
     setVolumeUI(prefix+"Vol", mp);
     setSwitchUI(prefix+"Mute", prefix+"MuteWrap", mp ? {state: (mp.attributes && mp.attributes.is_volume_muted) ? "on":"off", entity_id: entity+"|mute"} : null);
     setSwitchUI(prefix+"Loudness", prefix+"LoudnessWrap", state[EH[prefix+"Loudness"]]);
@@ -2429,11 +2436,15 @@
     });
   }
   function wireMediaButtons(prefix, entity){
-    $(prefix+"PlayPause").addEventListener("click", function(){
-      var s = state[entity];
-      var svc = (s && s.state==="playing") ? "media_pause" : "media_play";
-      withBusy(haCall("media_player", svc, {entity_id: entity}))
-        .then(refresh).catch(function(err){ toast("Playback failed: "+err.message,"err"); refresh(); });
+    $(prefix+"Play").addEventListener("click", function(){
+      withBusy(haCall("media_player","media_play",{entity_id: entity}))
+        .then(function(){ setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(err){ toast("Playback failed: "+err.message,"err"); refreshOne(entity); });
+    });
+    $(prefix+"Pause").addEventListener("click", function(){
+      withBusy(haCall("media_player","media_pause",{entity_id: entity}))
+        .then(function(){ setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(err){ toast("Pause failed: "+err.message,"err"); refreshOne(entity); });
     });
     $(prefix+"Prev").addEventListener("click", function(){
       withBusy(haCall("media_player","media_previous_track",{entity_id:entity}))
@@ -2442,6 +2453,36 @@
     $(prefix+"Next").addEventListener("click", function(){
       withBusy(haCall("media_player","media_next_track",{entity_id:entity}))
         .then(refresh).catch(function(){ toast("Failed","err"); refresh(); });
+    });
+  }
+
+  // Radio: Sonos itself has no DAB tuner (it's WiFi-only), but every one of
+  // these stations already streams live online - playing that stream through
+  // Sonos is the practical equivalent. URLs are Sveriges Radio's own public
+  // redirect endpoints (api.sr.se channel liveaudio links), which resolve to
+  // whichever edge server is closest rather than a single fixed address.
+  var RADIO_STATIONS = [
+    { name:"P1", url:"https://www.sverigesradio.se/topsy/direkt/srapi/132.mp3" },
+    { name:"P2", url:"https://www.sverigesradio.se/topsy/direkt/srapi/163.mp3" },
+    { name:"P3", url:"https://www.sverigesradio.se/topsy/direkt/srapi/164.mp3" },
+    { name:"P4 Göteborg", url:"https://www.sverigesradio.se/topsy/direkt/srapi/212.mp3" }
+  ];
+  function wireRadio(prefix, entity){
+    $(prefix+"Radio").innerHTML = RADIO_STATIONS.map(function(st){
+      return '<button type="button" class="chip" data-radio-url="'+st.url+'">'+
+        '<span class="ic">&#128225;</span><span>'+st.name+'</span></button>';
+    }).join("");
+    document.querySelectorAll("#"+prefix+"Radio [data-radio-url]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        withBusy(haCall("media_player","play_media",{
+          entity_id: entity,
+          media_content_id: btn.getAttribute("data-radio-url"),
+          media_content_type: "music"
+        })).then(function(){
+          toast("Playing "+btn.textContent.trim(),"ok");
+          setTimeout(function(){ refreshOne(entity); }, 2000);
+        }).catch(function(err){ toast("Couldn't start radio: "+err.message,"err"); });
+      });
     });
   }
 
@@ -2489,6 +2530,7 @@
   wireTts("sonosKitchen", EH.sonosKitchen);
 
   wireMediaButtons("sonosTv", EH.sonosTv);
+  wireRadio("sonosTv", EH.sonosTv);
   // Doors: read-only battery/lock-state display was the original design,
   // but the user asked for actual unlock/lock control - these are plain
   // lock domain services, no PIN/control-server involvement needed (unlike
@@ -2539,6 +2581,7 @@
   wireNumberRange("sonosTvMusicSurroundLevel", EH.sonosTvMusicSurroundLevel);
 
   wireMediaButtons("sonosKitchen", EH.sonosKitchen);
+  wireRadio("sonosKitchen", EH.sonosKitchen);
   wireVolume("sonosKitchenVol", EH.sonosKitchen);
   wireMute("sonosKitchenMute", EH.sonosKitchen);
   wireSwitch("sonosKitchenLoudness", EH.sonosKitchenLoudness, "Loudness");
