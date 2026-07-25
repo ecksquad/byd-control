@@ -298,6 +298,10 @@
      styling otherwise fights the dark background with near-invisible text */
   button.chip{appearance:none;color:var(--ink);font:inherit;cursor:pointer}
   button.chip:hover{background:color-mix(in srgb, var(--accent) 12%, var(--panel2))}
+  .radio-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    min-width:24px;height:24px;padding:0 5px;border-radius:7px;font-size:9px;font-weight:800;
+    letter-spacing:-.01em;color:#fff}
+  .radio-badge.dark{color:#1a1a1a}
 
   .vitals-list{display:flex;flex-direction:column;gap:0}
   .vrow{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--line);
@@ -2456,36 +2460,54 @@
     });
   }
 
-  // Radio: Sonos itself has no DAB tuner (it's WiFi-only), but every one of
-  // these stations already streams live online - playing that stream through
-  // Sonos is the practical equivalent. Every URL below was spot-checked live
-  // (curl, following redirects) before being added, not copied blind from a
-  // directory - commercial stations' stream links rot more often than
-  // Sveriges Radio's own public redirect endpoints. NRJ listed first since
-  // it's the one actually used as a default before this feature existed.
+  // Radio: Sonos itself has no DAB tuner (it's WiFi-only), so this plays
+  // each station's live web stream instead - through Home Assistant's own
+  // Radio Browser integration (the same "preset TuneIn radios" browsable
+  // from within Home Assistant's Sonos card), NOT a raw stream URL.
+  //
+  // That distinction matters and was the actual bug behind an earlier
+  // version of this feature (2026-07-25): passing a plain http(s) URL as
+  // media_content_id makes HA's Sonos integration treat it as a normal
+  // on-demand track, and every commercial station (all on Bauer/NENT's
+  // khz.se or sharp-stream.com infrastructure) made the play_media call
+  // return a genuine 500 - confirmed directly against Home Assistant,
+  // across several content_type values, and even the same stream resolved
+  // through TuneIn's own redirector. Sveriges Radio's URLs happened to work
+  // by luck either way, which is why only those survived a first attempt
+  // at removing the broken ones instead of finding the real fix.
+  // media-source://radio_browser/<uuid> is different: HA's Sonos component
+  // specifically recognizes that URI prefix and sets force_radio=True,
+  // which makes SoCo rewrite the URI to Sonos's own x-rincon-mp3radio
+  // scheme (live-broadcast handling) instead of treating it as a track -
+  // confirmed live for all 11 stations below, each one actually reaching
+  // Sonos's "playing" state, not just returning 200 with nothing audible.
+  // UUIDs are from radio-browser.info (the same open database HA's Radio
+  // Browser integration itself draws from), picked as the highest-clickcount
+  // entry per station and spot-verified to resolve to the right stream.
   var RADIO_STATIONS = [
-    { name:"NRJ", url:"http://tx-bauerse.sharp-stream.com/http_live.php?i=nrj_instreamtest_se_mp3" },
-    { name:"Mix Megapol", url:"https://live-bauerse-fm.sharp-stream.com/mixmegapol_instream_se_mp3" },
-    { name:"RIX FM", url:"https://fm01-ice.stream.khz.se/fm01_mp3" },
-    { name:"Bandit Rock", url:"http://fm02-ice.stream.khz.se/fm02_mp3" },
-    { name:"Star FM", url:"http://fm05-ice.stream.khz.se/fm05_mp3" },
-    { name:"Lugna Favoriter", url:"http://fm03-ice.stream.khz.se/fm03_mp3" },
-    { name:"106,7 Rockklassiker", url:"http://tx-bauerse.sharp-stream.com/http_live.php?ua=WEB&i=rockklassiker_instream_se_mp3" },
-    { name:"P1", url:"https://www.sverigesradio.se/topsy/direkt/srapi/132.mp3" },
-    { name:"P2", url:"https://www.sverigesradio.se/topsy/direkt/srapi/163.mp3" },
-    { name:"P3", url:"https://www.sverigesradio.se/topsy/direkt/srapi/164.mp3" },
-    { name:"P4 Göteborg", url:"https://www.sverigesradio.se/topsy/direkt/srapi/212.mp3" }
+    { name:"NRJ", short:"NRJ", color:"#e2231a", uuid:"96414222-0601-11e8-ae97-52543be04c81" },
+    { name:"Mix Megapol", short:"MM", color:"#e6007e", uuid:"0772676d-9fe4-4945-b63f-3e88e5aeb374" },
+    { name:"RIX FM", short:"RIX", color:"#0064b4", uuid:"0d3a2fd0-4c71-46ee-8700-2686fb699307" },
+    { name:"Bandit Rock", short:"BR", color:"#8a1414", uuid:"168e0796-3b97-479c-949d-b1871ef07379" },
+    { name:"Star FM", short:"SFM", color:"#f2b705", dark:true, uuid:"49b761c3-0564-4501-857f-f1ee6831b387" },
+    { name:"Lugna Favoriter", short:"LF", color:"#5b9bd5", uuid:"2f869fa1-9f35-4ab3-a417-e8cef6880f48" },
+    { name:"106,7 Rockklassiker", short:"RK", color:"#3a3a3a", uuid:"9642ad8b-0601-11e8-ae97-52543be04c81" },
+    { name:"P1", short:"P1", color:"#00857a", uuid:"95019533-f24b-4eb2-ba07-2ccdf1ea683e" },
+    { name:"P2", short:"P2", color:"#00857a", uuid:"3b7a51fa-88af-4d6f-9489-6f57ae737b1a" },
+    { name:"P3", short:"P3", color:"#00857a", uuid:"01a0db86-1f60-4473-9601-1de61587b255" },
+    { name:"P4 Göteborg", short:"P4", color:"#00857a", uuid:"003dea75-02eb-40c2-8a92-5150a709b74d" }
   ];
   function wireRadio(prefix, entity){
     $(prefix+"Radio").innerHTML = RADIO_STATIONS.map(function(st){
-      return '<button type="button" class="chip" data-radio-url="'+st.url+'">'+
-        '<span class="ic">&#128225;</span><span>'+st.name+'</span></button>';
+      return '<button type="button" class="chip" data-radio-uuid="'+st.uuid+'">'+
+        '<span class="radio-badge'+(st.dark?' dark':'')+'" style="background:'+st.color+'">'+st.short+'</span>'+
+        '<span>'+st.name+'</span></button>';
     }).join("");
-    document.querySelectorAll("#"+prefix+"Radio [data-radio-url]").forEach(function(btn){
+    document.querySelectorAll("#"+prefix+"Radio [data-radio-uuid]").forEach(function(btn){
       btn.addEventListener("click", function(){
         withBusy(haCall("media_player","play_media",{
           entity_id: entity,
-          media_content_id: btn.getAttribute("data-radio-url"),
+          media_content_id: "media-source://radio_browser/"+btn.getAttribute("data-radio-uuid"),
           media_content_type: "music"
         })).then(function(){
           toast("Playing "+btn.textContent.trim(),"ok");
