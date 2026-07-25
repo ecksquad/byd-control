@@ -2458,10 +2458,19 @@
 
   // Radio: Sonos itself has no DAB tuner (it's WiFi-only), but every one of
   // these stations already streams live online - playing that stream through
-  // Sonos is the practical equivalent. URLs are Sveriges Radio's own public
-  // redirect endpoints (api.sr.se channel liveaudio links), which resolve to
-  // whichever edge server is closest rather than a single fixed address.
+  // Sonos is the practical equivalent. Every URL below was spot-checked live
+  // (curl, following redirects) before being added, not copied blind from a
+  // directory - commercial stations' stream links rot more often than
+  // Sveriges Radio's own public redirect endpoints. NRJ listed first since
+  // it's the one actually used as a default before this feature existed.
   var RADIO_STATIONS = [
+    { name:"NRJ", url:"http://tx-bauerse.sharp-stream.com/http_live.php?i=nrj_instreamtest_se_mp3" },
+    { name:"Mix Megapol", url:"https://live-bauerse-fm.sharp-stream.com/mixmegapol_instream_se_mp3" },
+    { name:"RIX FM", url:"https://fm01-ice.stream.khz.se/fm01_mp3" },
+    { name:"Bandit Rock", url:"http://fm02-ice.stream.khz.se/fm02_mp3" },
+    { name:"Star FM", url:"http://fm05-ice.stream.khz.se/fm05_mp3" },
+    { name:"Lugna Favoriter", url:"http://fm03-ice.stream.khz.se/fm03_mp3" },
+    { name:"106,7 Rockklassiker", url:"http://tx-bauerse.sharp-stream.com/http_live.php?ua=WEB&i=rockklassiker_instream_se_mp3" },
     { name:"P1", url:"https://www.sverigesradio.se/topsy/direkt/srapi/132.mp3" },
     { name:"P2", url:"https://www.sverigesradio.se/topsy/direkt/srapi/163.mp3" },
     { name:"P3", url:"https://www.sverigesradio.se/topsy/direkt/srapi/164.mp3" },
