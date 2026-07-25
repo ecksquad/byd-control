@@ -1300,6 +1300,39 @@
     return promise.finally(function(){ busy=false; });
   }
 
+  // Optimistic-toggle overrides. Toggles used to wait on a full fetchAll()
+  // (every car + house entity, ~130 individual requests) before the switch
+  // even visually flipped - slow over the Tailscale tunnel, and prone to a
+  // flip-then-revert-then-correct flicker if a slow request read stale
+  // state mid-flight. Now a toggle sets an override, renders instantly
+  // (render() is pure DOM work against the already-held `state` object -
+  // fetchAll() was always the actual slow part), and a single-entity
+  // recheck a bit later confirms/clears it - no full refresh needed per
+  // click. TTL is a safety net: if the real state never catches up (a
+  // failed command), the override expires and the UI stops lying.
+  var pendingOverrides = {}; // entity_id -> {value, until}
+  function setOverride(entity, value, ttlMs){
+    pendingOverrides[entity] = { value: value, until: Date.now() + (ttlMs||8000) };
+  }
+  function overrideFor(entity){
+    var o = pendingOverrides[entity];
+    if(!o) return undefined;
+    if(Date.now() > o.until){ delete pendingOverrides[entity]; return undefined; }
+    return o.value;
+  }
+  function reconcileOverride(entity, actualValue){
+    var o = pendingOverrides[entity];
+    if(o && o.value === actualValue) delete pendingOverrides[entity];
+  }
+  function clearOverride(entity){ delete pendingOverrides[entity]; }
+  function refreshOne(entity){
+    return haGet(entity).then(function(s){
+      state[entity] = s;
+      reconcileOverride(entity, on(s));
+      render();
+    }).catch(function(){});
+  }
+
   var state = {}; // entity_id -> state object
   var lastFetchOk = true;
   var lastFetchAt = null; // epoch ms of last successful fetchAll - feeds the House page's #lastUpdated
@@ -1535,7 +1568,7 @@
     updateAlbumArt(prefix, mp);
     $(prefix+"PlayPause").textContent = (mp && mp.state==="playing") ? "Pause" : "Play";
     setVolumeUI(prefix+"Vol", mp);
-    setSwitchUI(prefix+"Mute", prefix+"MuteWrap", mp ? {state: (mp.attributes && mp.attributes.is_volume_muted) ? "on":"off"} : null);
+    setSwitchUI(prefix+"Mute", prefix+"MuteWrap", mp ? {state: (mp.attributes && mp.attributes.is_volume_muted) ? "on":"off", entity_id: entity+"|mute"} : null);
     setSwitchUI(prefix+"Loudness", prefix+"LoudnessWrap", state[EH[prefix+"Loudness"]]);
     setSwitchUI(prefix+"Crossfade", prefix+"CrossfadeWrap", state[EH[prefix+"Crossfade"]]);
     setSwitchUI(prefix+"Autoplay", prefix+"AutoplayWrap", state[EH[prefix+"Autoplay"]]);
@@ -1560,7 +1593,8 @@
           var key = plejdKey(l.id);
           var s = state[l.id];
           var input = $(key), pctEl = $(key+"Pct"), briInput = $(key+"Bri");
-          var isOn = s && s.state === "on";
+          var override = overrideFor(l.id);
+          var isOn = override!==undefined ? override : (s && s.state === "on");
           var available = s && s.state !== "unavailable";
           if(document.activeElement !== input) input.checked = isOn;
           input.disabled = !available;
@@ -1641,15 +1675,17 @@
     $("netDownSpeed").textContent = fmtVal(num(state[EH.netDownSpeed]), 1, " KiB/s");
     $("netUpSpeed").textContent = fmtVal(num(state[EH.netUpSpeed]), 1, " KiB/s");
 
-    // Doors - state shown read-only (no lock/unlock control here)
+    // Doors - lock/unlock buttons live above; this chip row reflects state
     var doorChips = [];
     var frontLock = state[EH.frontDoorLock], backLock = state[EH.backDoorLock];
     if(frontLock){
-      var frontLocked = frontLock.state === "locked";
+      var frontOverride = overrideFor(EH.frontDoorLock);
+      var frontLocked = frontOverride!==undefined ? frontOverride==="locked" : frontLock.state === "locked";
       doorChips.push(chipHtml(frontLocked?"ok":"bad", frontLocked?"&#128274;":"&#128275;", "Front: "+(frontLocked?"Locked":"Unlocked")));
     }
     if(backLock){
-      var backLocked = backLock.state === "locked";
+      var backOverride = overrideFor(EH.backDoorLock);
+      var backLocked = backOverride!==undefined ? backOverride==="locked" : backLock.state === "locked";
       doorChips.push(chipHtml(backLocked?"ok":"bad", backLocked?"&#128274;":"&#128275;", "Back: "+(backLocked?"Locked":"Unlocked")));
     }
     $("doorChips").innerHTML = doorChips.join("");
@@ -1696,7 +1732,9 @@
   function setSwitchUI(inputId, wrapId, s){
     var input = $(inputId);
     if(document.activeElement === input) return; // don't fight an in-progress user toggle
-    input.checked = on(s);
+    var entity = s && s.entity_id;
+    var override = entity ? overrideFor(entity) : undefined;
+    input.checked = override!==undefined ? override : on(s);
     $(wrapId).classList.toggle("disabled", !s || s.state==="unavailable");
   }
 
@@ -1886,9 +1924,11 @@
   function wireSwitch(inputId, entity, label){
     $(inputId).addEventListener("change", function(e){
       var wantOn = e.target.checked;
+      setOverride(entity, wantOn);
+      render(); // instant feedback - no network wait
       withBusy(haCall("switch", wantOn?"turn_on":"turn_off", {entity_id:entity}))
-        .then(function(){ toast(label+(wantOn?" on":" off"),"ok"); return refresh(); })
-        .catch(function(){ toast("Couldn't change "+label,"err"); refresh(); });
+        .then(function(){ toast(label+(wantOn?" on":" off"),"ok"); setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(){ toast("Couldn't change "+label,"err"); clearOverride(entity); render(); });
     });
   }
   wireSwitch("swChargeFull", E.chargeToFull, "Charge to full");
@@ -1955,16 +1995,22 @@
           var key = plejdKey(l.id);
           $(key).addEventListener("change", function(e){
             var wantOn = e.target.checked;
+            setOverride(l.id, wantOn);
+            render();
             withBusy(haCall("light", wantOn?"turn_on":"turn_off", {entity_id:l.id}))
-              .then(refresh).catch(function(err){ toast("Couldn't change "+l.name+": "+err.message,"err"); e.target.checked=!wantOn; refresh(); });
+              .then(function(){ setTimeout(function(){ refreshOne(l.id); }, 1500); })
+              .catch(function(err){ toast("Couldn't change "+l.name+": "+err.message,"err"); clearOverride(l.id); render(); });
           });
           var briInput = $(key+"Bri");
           if(briInput){
             briInput.addEventListener("input", function(e){ $(key+"Pct").textContent = e.target.value+"%"; });
             briInput.addEventListener("change", function(e){
               var pct = parseInt(e.target.value, 10);
+              setOverride(l.id, true); // dimming a light also turns it on
+              render();
               withBusy(haCall("light","turn_on",{entity_id:l.id, brightness_pct: pct}))
-                .then(refresh).catch(function(err){ toast("Couldn't dim "+l.name+": "+err.message,"err"); refresh(); });
+                .then(function(){ setTimeout(function(){ refreshOne(l.id); }, 1500); })
+                .catch(function(err){ toast("Couldn't dim "+l.name+": "+err.message,"err"); clearOverride(l.id); render(); });
             });
           }
         });
@@ -2108,23 +2154,27 @@
   function wireVolume(id, entity){
     $(id).addEventListener("input", function(){ $(id+"Val").textContent = this.value+"%"; });
     $(id).addEventListener("change", function(){
-      withBusy(haCall("media_player","volume_set",{entity_id:entity, volume_level: parseFloat(this.value)/100}))
-        .then(refresh).catch(function(err){ toast("Couldn't set volume: "+err.message,"err"); refresh(); });
+      var val = this.value;
+      withBusy(haCall("media_player","volume_set",{entity_id:entity, volume_level: parseFloat(val)/100}))
+        .then(function(){ setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(err){ toast("Couldn't set volume: "+err.message,"err"); refreshOne(entity); });
     });
   }
   function wireNumberRange(id, entity){
     $(id).addEventListener("input", function(){ $(id+"Val").textContent = this.value; });
     $(id).addEventListener("change", function(){
       withBusy(haCall("number","set_value",{entity_id:entity, value: parseFloat(this.value)}))
-        .then(refresh).catch(function(err){ toast("Couldn't update: "+err.message,"err"); refresh(); });
+        .then(function(){ setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(err){ toast("Couldn't update: "+err.message,"err"); refreshOne(entity); });
     });
   }
   function wireMute(id, entity){
     $(id).addEventListener("change", function(e){
       var wantMute = e.target.checked;
+      setOverride(entity+"|mute", wantMute);
       withBusy(haCall("media_player","volume_mute",{entity_id:entity, is_volume_muted: wantMute}))
-        .then(function(){ toast("Mute "+(wantMute?"on":"off"),"ok"); return refresh(); })
-        .catch(function(err){ toast("Couldn't mute: "+err.message,"err"); e.target.checked=!wantMute; refresh(); });
+        .then(function(){ toast("Mute "+(wantMute?"on":"off"),"ok"); setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(err){ toast("Couldn't mute: "+err.message,"err"); e.target.checked=!wantMute; clearOverride(entity+"|mute"); });
     });
   }
   function wireMediaButtons(prefix, entity){
@@ -2194,9 +2244,11 @@
   // the car's lock/unlock, which goes through byd-control for the BYD cloud).
   function wireDoorLock(btnId, entity, service, label){
     $(btnId).addEventListener("click", function(){
+      setOverride(entity, service==="lock"?"locked":"unlocked");
+      render();
       withBusy(haCall("lock", service, {entity_id: entity}))
-        .then(function(){ toast(label+" done","ok"); return refresh(); })
-        .catch(function(err){ toast(label+" failed: "+err.message,"err"); });
+        .then(function(){ toast(label+" done","ok"); setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(err){ toast(label+" failed: "+err.message,"err"); clearOverride(entity); render(); });
     });
   }
   wireDoorLock("frontDoorUnlockBtn", EH.frontDoorLock, "unlock", "Unlock front door");
@@ -2204,11 +2256,19 @@
   wireDoorLock("backDoorUnlockBtn", EH.backDoorLock, "unlock", "Unlock back door");
   wireDoorLock("backDoorLockBtn", EH.backDoorLock, "lock", "Lock back door");
   $("unlockBothDoorsBtn").addEventListener("click", function(){
+    setOverride(EH.frontDoorLock, "unlocked");
+    setOverride(EH.backDoorLock, "unlocked");
+    render();
     withBusy(Promise.all([
       haCall("lock","unlock",{entity_id:EH.frontDoorLock}),
       haCall("lock","unlock",{entity_id:EH.backDoorLock})
-    ])).then(function(){ toast("Both doors unlocked","ok"); return refresh(); })
-      .catch(function(err){ toast("Couldn't open doors: "+err.message,"err"); });
+    ])).then(function(){
+      toast("Both doors unlocked","ok");
+      setTimeout(function(){ refreshOne(EH.frontDoorLock); refreshOne(EH.backDoorLock); }, 1500);
+    }).catch(function(err){
+      toast("Couldn't open doors: "+err.message,"err");
+      clearOverride(EH.frontDoorLock); clearOverride(EH.backDoorLock); render();
+    });
   });
 
   wireVolume("sonosTvVol", EH.sonosTv);
@@ -2263,7 +2323,8 @@
     $("daikinTempVal").textContent = next;
     $("daikinTempValBig").textContent = next;
     withBusy(haCall("climate","set_temperature",{entity_id:EH.daikinClimate, temperature: next}))
-      .then(refresh).catch(function(err){ toast("Couldn't set AC temp: "+err.message,"err"); refresh(); });
+      .then(function(){ setTimeout(function(){ refreshOne(EH.daikinClimate); }, 1500); })
+      .catch(function(err){ toast("Couldn't set AC temp: "+err.message,"err"); refreshOne(EH.daikinClimate); });
   }
   $("daikinTempDown").addEventListener("click", function(){
     var s = state[EH.daikinClimate];
@@ -2277,19 +2338,23 @@
   });
   $("daikinHvacMode").addEventListener("change", function(){
     withBusy(haCall("climate","set_hvac_mode",{entity_id:EH.daikinClimate, hvac_mode:this.value}))
-      .then(refresh).catch(function(err){ toast("Couldn't set mode: "+err.message,"err"); refresh(); });
+      .then(function(){ setTimeout(function(){ refreshOne(EH.daikinClimate); }, 1500); })
+      .catch(function(err){ toast("Couldn't set mode: "+err.message,"err"); refreshOne(EH.daikinClimate); });
   });
   $("daikinFanMode").addEventListener("change", function(){
     withBusy(haCall("climate","set_fan_mode",{entity_id:EH.daikinClimate, fan_mode:this.value}))
-      .then(refresh).catch(function(err){ toast("Couldn't set fan: "+err.message,"err"); refresh(); });
+      .then(function(){ setTimeout(function(){ refreshOne(EH.daikinClimate); }, 1500); })
+      .catch(function(err){ toast("Couldn't set fan: "+err.message,"err"); refreshOne(EH.daikinClimate); });
   });
   $("daikinSwingMode").addEventListener("change", function(){
     withBusy(haCall("climate","set_swing_mode",{entity_id:EH.daikinClimate, swing_mode:this.value}))
-      .then(refresh).catch(function(err){ toast("Couldn't set swing: "+err.message,"err"); refresh(); });
+      .then(function(){ setTimeout(function(){ refreshOne(EH.daikinClimate); }, 1500); })
+      .catch(function(err){ toast("Couldn't set swing: "+err.message,"err"); refreshOne(EH.daikinClimate); });
   });
   $("daikinPresetMode").addEventListener("change", function(){
     withBusy(haCall("climate","set_preset_mode",{entity_id:EH.daikinClimate, preset_mode:this.value}))
-      .then(refresh).catch(function(err){ toast("Couldn't set preset: "+err.message,"err"); refresh(); });
+      .then(function(){ setTimeout(function(){ refreshOne(EH.daikinClimate); }, 1500); })
+      .catch(function(err){ toast("Couldn't set preset: "+err.message,"err"); refreshOne(EH.daikinClimate); });
   });
 
   // WiFi bands - IoT bands omitted entirely (unavailable/not provisioned on
