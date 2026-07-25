@@ -152,7 +152,7 @@
   .card > *{position:relative;z-index:1}
   .card h2{margin:0 0 14px;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
     display:flex;align-items:center;justify-content:space-between;gap:10px}
-  #page-house .c-wifi h2,#page-house .c-network h2{cursor:pointer;user-select:none}
+  #page-house .c-wifi h2,#page-house .c-network h2,#page-house .c-schedule h2,#page-house .c-lighting h2{cursor:pointer;user-select:none}
   .card-chevron{font-size:11px;transition:transform .2s ease;flex:none;color:var(--faint)}
   .htitle{display:flex;align-items:center;min-width:0}
   .hicon{font-size:15px;margin-right:8px;line-height:1;flex:none}
@@ -1842,8 +1842,11 @@
     $("netWanIp").textContent = (state[EH.netWanIp] && state[EH.netWanIp].state) || "--";
     $("netLanIp").textContent = (state[EH.netLanIp] && state[EH.netLanIp].state) || "--";
     $("netExternalIp").textContent = (state[EH.netExternalIp] && state[EH.netExternalIp].state) || "--";
-    $("netDownSpeed").textContent = fmtVal(num(state[EH.netDownSpeed]), 1, " KiB/s");
-    $("netUpSpeed").textContent = fmtVal(num(state[EH.netUpSpeed]), 1, " KiB/s");
+    // Sensor reports KiB/s - shown as MB/s (KiB/1024) since that's the more
+    // familiar unit, even though it's technically MiB.
+    var downKib = num(state[EH.netDownSpeed]), upKib = num(state[EH.netUpSpeed]);
+    $("netDownSpeed").textContent = fmtVal(downKib!==null ? downKib/1024 : null, 2, " MB/s");
+    $("netUpSpeed").textContent = fmtVal(upKib!==null ? upKib/1024 : null, 2, " MB/s");
 
     // Doors - lock/unlock buttons live above; this chip row reflects state
     var doorChips = [];
