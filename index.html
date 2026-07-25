@@ -1418,12 +1418,52 @@
     if(o && o.value === actualValue) delete pendingOverrides[entity];
   }
   function clearOverride(entity){ delete pendingOverrides[entity]; }
+
+  // Same idea, for a light's brightness percentage specifically - the on/off
+  // override above doesn't cover this, so a dimmer slider had nothing to
+  // show but the stale cached brightness the instant it re-rendered, which
+  // looked like the slider snapping back to its old position the moment you
+  // let go of it.
+  var pendingBriOverrides = {};
+  function setBriOverride(entity, pct, ttlMs){
+    pendingBriOverrides[entity] = { value: pct, until: Date.now() + (ttlMs||8000) };
+  }
+  function briOverrideFor(entity){
+    var o = pendingBriOverrides[entity];
+    if(!o) return undefined;
+    if(Date.now() > o.until){ delete pendingBriOverrides[entity]; return undefined; }
+    return o.value;
+  }
+  function reconcileBriOverride(entity, actualPct){
+    var o = pendingBriOverrides[entity];
+    if(o && o.value === actualPct) delete pendingBriOverrides[entity];
+  }
+  function clearBriOverride(entity){ delete pendingBriOverrides[entity]; }
+
   function refreshOne(entity){
     return haGet(entity).then(function(s){
       state[entity] = s;
       reconcileOverride(entity, on(s));
+      if(s && s.attributes && typeof s.attributes.brightness === "number"){
+        reconcileBriOverride(entity, Math.round(s.attributes.brightness/255*100));
+      }
       render();
     }).catch(function(){});
+  }
+
+  // Plejd's BLE mesh can take noticeably longer than a typical network round
+  // trip to actually confirm a command (documented elsewhere as ~1-5s, and
+  // that's not a hard ceiling) - a single recheck at a fixed delay can land
+  // before the light has really finished responding, which left the
+  // optimistic override sitting there until its own TTL ran out and then
+  // falling back to the stale pre-command state for a moment, before the
+  // next real poll finally corrected it. Retrying a few times catches the
+  // real state as soon as it's actually ready instead of waiting out a
+  // guessed delay or the next 20s poll.
+  function reconcileLightSoon(entity){
+    [1500, 3500, 7000].forEach(function(delay){
+      setTimeout(function(){ refreshOne(entity); }, delay);
+    });
   }
 
   var state = {}; // entity_id -> state object
@@ -1707,8 +1747,10 @@
           if(document.activeElement !== input) input.checked = isOn;
           input.disabled = !available;
           if(briInput && l.dimmable !== false){
-            var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
-              ? Math.round(s.attributes.brightness/255*100) : 0;
+            var briOv = briOverrideFor(l.id);
+            var pct = briOv!==undefined ? briOv
+              : (isOn && s.attributes && typeof s.attributes.brightness === "number")
+                ? Math.round(s.attributes.brightness/255*100) : 0;
             if(document.activeElement !== briInput) briInput.value = pct;
             briInput.disabled = !available || !isOn;
             pctEl.textContent = available ? pct+"%" : "--";
@@ -2130,12 +2172,15 @@
       site.rooms.forEach(function(room){
         room.lights.forEach(function(l){
           var key = plejdKey(l.id);
+          // 12s TTL and a few retries (reconcileLightSoon) rather than the
+          // 8s/single-check default used elsewhere - BLE mesh commands can
+          // genuinely take longer to confirm than a plain network call.
           $(key).addEventListener("change", function(e){
             var wantOn = e.target.checked;
-            setOverride(l.id, wantOn);
+            setOverride(l.id, wantOn, 12000);
             render();
             withBusy(haCall("light", wantOn?"turn_on":"turn_off", {entity_id:l.id}))
-              .then(function(){ setTimeout(function(){ refreshOne(l.id); }, 1500); })
+              .then(function(){ reconcileLightSoon(l.id); })
               .catch(function(err){ toast("Couldn't change "+l.name+": "+err.message,"err"); clearOverride(l.id); render(); });
           });
           var briInput = $(key+"Bri");
@@ -2144,11 +2189,12 @@
             briInput.addEventListener("input", function(e){ $(key+"Pct").textContent = e.target.value+"%"; });
             briInput.addEventListener("change", function(e){
               var pct = parseInt(e.target.value, 10);
-              setOverride(l.id, true); // dimming a light also turns it on
+              setOverride(l.id, true, 12000); // dimming a light also turns it on
+              setBriOverride(l.id, pct, 12000);
               render();
               withBusy(haCall("light","turn_on",{entity_id:l.id, brightness_pct: pct}))
-                .then(function(){ setTimeout(function(){ refreshOne(l.id); }, 1500); })
-                .catch(function(err){ toast("Couldn't dim "+l.name+": "+err.message,"err"); clearOverride(l.id); render(); });
+                .then(function(){ reconcileLightSoon(l.id); })
+                .catch(function(err){ toast("Couldn't dim "+l.name+": "+err.message,"err"); clearOverride(l.id); clearBriOverride(l.id); render(); });
             });
           }
         });
