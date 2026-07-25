@@ -521,6 +521,7 @@
     </div>
     <div class="h-actions">
       <button class="chip-btn" id="installBtn" hidden>&#128241; Spara</button>
+      <button class="icon-btn" id="themeToggleBtn" title="Toggle light/dark mode">&#127769;</button>
       <button class="icon-btn" id="refreshBtn" title="Refresh now">&#8635;</button>
       <button class="icon-btn" id="settingsBtn" title="Settings">&#9881;</button>
     </div>
@@ -1343,6 +1344,25 @@
   function on(s){ return !!s && s.state==="on"; }
   function $(id){ return document.getElementById(id); }
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Light/dark toggle - the CSS already had :root[data-theme] overrides
+  // ready (alongside the prefers-color-scheme auto-detection) but nothing
+  // ever set the attribute. Applied as early as possible (before the rest
+  // of the page's own setup) so there's no flash of the wrong theme.
+  var THEME_KEY = "carctrl_theme";
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    var btn = $("themeToggleBtn");
+    if(btn) btn.textContent = theme === "light" ? "☀️" : "🌙";
+    try{ localStorage.setItem(THEME_KEY, theme); }catch(e){}
+  }
+  function currentTheme(){
+    var stored = null;
+    try{ stored = localStorage.getItem(THEME_KEY); }catch(e){}
+    if(stored === "light" || stored === "dark") return stored;
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  applyTheme(currentTheme());
 
   var toastTimer=null;
   function toast(msg, kind){
@@ -2448,12 +2468,14 @@
 
   // Collapsible House cards - wraps everything after each card's <h2> into
   // a toggleable body, generated at runtime rather than hand-editing every
-  // card's markup. Car page is untouched. WiFi/Network/Schedule collapse
-  // (user request - Schedule is a settings-y section, closed by default,
-  // tap the header to expand) - Lighting/Sonos/Doors/Price/Backup/Daikin/
-  // Mower stay always-expanded; Lighting's own per-room collapse (built
-  // into buildLightingUI) is separate and unaffected either way.
-  document.querySelectorAll("#page-house .c-wifi, #page-house .c-network, #page-house .c-schedule").forEach(function(card){
+  // card's markup. Car page is untouched. WiFi/Network/Schedule/Lighting
+  // collapse (user request - Lighting grew to 28 lights across 12 rooms,
+  // all open by default, which made it dominate the page; closed by
+  // default now, tap the header to expand and see all of them at once) -
+  // Sonos/Doors/Price/Backup/Daikin/Mower stay always-expanded. Lighting's
+  // own per-room collapse (built into buildLightingUI, rooms open by
+  // default within the card) is separate and unaffected either way.
+  document.querySelectorAll("#page-house .c-wifi, #page-house .c-network, #page-house .c-schedule, #page-house .c-lighting").forEach(function(card){
     var h2 = card.querySelector("h2");
     if(!h2) return;
     var body = document.createElement("div");
@@ -2890,6 +2912,10 @@
       body.innerHTML = chargeMsgRow("Couldn't load charge history: "+e.message, true);
     });
   }
+
+  $("themeToggleBtn").addEventListener("click", function(){
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
 
   $("refreshBtn").addEventListener("click", function(){
     if(!reduceMotion){ this.classList.remove("spin"); void this.offsetWidth; this.classList.add("spin"); }
