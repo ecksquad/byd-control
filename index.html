@@ -185,26 +185,12 @@
   .c-mower{grid-column:span 12}
   .c-lighting{grid-column:span 12}
   .c-schedule{grid-column:span 12}
+  .c-alarm{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
     .c-windows,.c-comfort,.c-history,
     .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower,
-    .c-lighting,.c-schedule{grid-column:span 12}
-
-    /* Bigger touch targets for every slider - the 16px thumb/4px track
-       combo (sized for a mouse pointer) was hard to grab precisely with
-       a fingertip. */
-    .range-row input[type=range],.plejd-light-bri input[type=range],.light-sched-bri input[type=range]{
-      height:8px;
-    }
-    .range-row input[type=range]::-webkit-slider-thumb,.plejd-light-bri input[type=range]::-webkit-slider-thumb,
-    .light-sched-bri input[type=range]::-webkit-slider-thumb{
-      width:26px;height:26px;
-    }
-    .range-row input[type=range]::-moz-range-thumb,.plejd-light-bri input[type=range]::-moz-range-thumb,
-    .light-sched-bri input[type=range]::-moz-range-thumb{
-      width:26px;height:26px;
-    }
+    .c-lighting,.c-schedule,.c-alarm{grid-column:span 12}
   }
 
   /* Plejd lighting section */
@@ -370,10 +356,24 @@
   .light-sched-row:last-child{border-bottom:none}
   .light-sched-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
   .light-sched-top .plejd-light-name{flex:1 1 auto}
+  .light-sched-bri-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .light-sched-bri-row .light-sched-bri{flex:1;min-width:0}
   .light-sched-when{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
-  .light-sched-when .chk-inline{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
+  .light-sched-when .sel{width:auto;flex:none}
   .light-sched-when input[type=number]{width:70px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
     border-radius:9px;padding:8px 9px;font-size:13.5px;font-family:inherit}
+  .light-sched-bri input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:99px;
+    background:var(--line);outline:none}
+  .light-sched-bri input[type=range]:disabled{opacity:.4}
+  .light-sched-bri input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  .light-sched-bri input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);
+    border:none;cursor:pointer}
+
+  /* alarm days */
+  .alarm-days{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0 12px}
+  .alarm-days label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
+  .alarm-days input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
 
   /* house page primitives */
   .disabled-group.is-off{opacity:.4;pointer-events:none}
@@ -413,6 +413,24 @@
     background:var(--accent);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.35)}
   .range-row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);
     border:none;cursor:pointer}
+
+  /* Bigger touch targets for every slider, desktop/tablet only - phones
+     keep the original compact 16px thumb/4px track (tested better there
+     than the enlarged version). Placed after every base slider rule above
+     so equal-specificity cascade order doesn't let those override this. */
+  @media (min-width:761px){
+    .range-row input[type=range],.plejd-light-bri input[type=range],.light-sched-bri input[type=range]{
+      height:8px;
+    }
+    .range-row input[type=range]::-webkit-slider-thumb,.plejd-light-bri input[type=range]::-webkit-slider-thumb,
+    .light-sched-bri input[type=range]::-webkit-slider-thumb{
+      width:26px;height:26px;
+    }
+    .range-row input[type=range]::-moz-range-thumb,.plejd-light-bri input[type=range]::-moz-range-thumb,
+    .light-sched-bri input[type=range]::-moz-range-thumb{
+      width:26px;height:26px;
+    }
+  }
 
   .btn{appearance:none;border:none;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:650;cursor:pointer;
     display:inline-flex;align-items:center;gap:8px;justify-content:center;font-family:inherit;
@@ -734,20 +752,44 @@
 
     <div class="card c-schedule">
       <h2><span class="htitle"><span class="hicon">⏰</span>Lighting schedules</span></h2>
-      <div class="grp-label">Add a schedule</div>
-      <select class="sel" id="schedTarget" style="width:100%;margin-bottom:8px"></select>
-      <div class="ctl-row" id="schedActionRow">
-        <div class="ctl-label"><div class="t">Turn on</div><div class="d">Off if unchecked</div></div>
-        <label class="switch" id="schedActionWrap"><input type="checkbox" id="schedAction" checked><span class="track"></span><span class="knob"></span></label>
-      </div>
-      <div class="time-row" style="margin:12px 0">
-        <input type="time" id="schedTime" value="07:00">
-      </div>
-      <button class="btn primary" id="schedAddBtn" style="margin-bottom:16px">Add schedule</button>
-      <div class="grp-label">Quick add — by light</div>
+      <div class="grp-label">Schedule a light</div>
       <div id="lightSchedRows"></div>
       <div class="grp-label">Active schedules</div>
       <div id="schedList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
+    </div>
+
+    <div class="card c-alarm">
+      <h2><span class="htitle"><span class="hicon">⏰</span>Alarm — wake up</span></h2>
+      <div class="grp-label">Message</div>
+      <div class="tts-row">
+        <input type="text" id="alarmText" placeholder="Message to play…" value="Dags att vakna!">
+        <select class="sel" id="alarmLang"><option value="sv">SV</option><option value="en">EN</option></select>
+      </div>
+      <div class="grp-label">Speaker</div>
+      <select class="sel" id="alarmSpeaker" style="width:100%;margin-bottom:8px">
+        <option value="sonosTv">TV room</option>
+        <option value="sonosKitchen">Kitchen</option>
+      </select>
+      <div class="range-row">
+        <div class="rr-top"><span class="k">Volume</span><span class="v" id="alarmVolVal">50%</span></div>
+        <input type="range" id="alarmVol" min="0" max="100" step="1" value="50">
+      </div>
+      <div class="grp-label">Days</div>
+      <div class="alarm-days" id="alarmDays">
+        <label><input type="checkbox" value="mon">Mon</label>
+        <label><input type="checkbox" value="tue">Tue</label>
+        <label><input type="checkbox" value="wed">Wed</label>
+        <label><input type="checkbox" value="thu">Thu</label>
+        <label><input type="checkbox" value="fri">Fri</label>
+        <label><input type="checkbox" value="sat">Sat</label>
+        <label><input type="checkbox" value="sun">Sun</label>
+      </div>
+      <div class="time-row" style="margin:12px 0">
+        <input type="time" id="alarmTime" value="07:00">
+      </div>
+      <button class="btn primary" id="alarmAddBtn" style="margin-bottom:16px">Add alarm</button>
+      <div class="grp-label">Active alarms</div>
+      <div id="alarmList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
     </div>
 
     <div class="card c-sonos-tv">
@@ -2037,6 +2079,27 @@
     }).join("");
   }
 
+  // Arrow-key stepping for brightness sliders: the native range step is 1
+  // (needed for precise dragging), which makes reaching a target % from the
+  // keyboard painfully slow. Right/Left jump 10% at a time instead - the
+  // same input+change events a real drag-and-release would fire are
+  // dispatched afterward, so existing listeners (percentage label, the
+  // actual light/schedule command) work unchanged.
+  function wireBrightnessArrowKeys(input, step){
+    step = step || 10;
+    input.addEventListener("keydown", function(e){
+      if(e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      var min = parseInt(input.min, 10) || 0, max = parseInt(input.max, 10) || 100;
+      var cur = parseInt(input.value, 10) || 0;
+      var next = Math.max(min, Math.min(max, cur + (e.key === "ArrowRight" ? step : -step)));
+      if(next === cur) return;
+      input.value = next;
+      input.dispatchEvent(new Event("input", {bubbles:true}));
+      input.dispatchEvent(new Event("change", {bubbles:true}));
+    });
+  }
+
   function wireLighting(){
     PLEJD_SITES.forEach(function(site){
       site.rooms.forEach(function(room){
@@ -2052,6 +2115,7 @@
           });
           var briInput = $(key+"Bri");
           if(briInput){
+            wireBrightnessArrowKeys(briInput);
             briInput.addEventListener("input", function(e){ $(key+"Pct").textContent = e.target.value+"%"; });
             briInput.addEventListener("change", function(e){
               var pct = parseInt(e.target.value, 10);
@@ -2104,30 +2168,6 @@
       headers:{ "X-Api-Key": c.controlKey }
     }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json().catch(function(){return null;}); });
   }
-  function schedTargetOptions(){
-    var opts = [];
-    PLEJD_SITES.forEach(function(site){
-      site.rooms.forEach(function(room){
-        room.lights.forEach(function(l){
-          opts.push({ value:"light|"+l.id, label: site.name+" – "+room.label+" – "+l.name });
-        });
-      });
-    });
-    PLEJD_SCENES.forEach(function(sc){
-      opts.push({ value:"scene|"+sc.id, label:"Scene: "+sc.name });
-    });
-    return opts;
-  }
-  function updateSchedActionVisibility(){
-    $("schedActionRow").style.display = $("schedTarget").value.indexOf("scene|")===0 ? "none" : "";
-  }
-  function buildSchedForm(){
-    $("schedTarget").innerHTML = schedTargetOptions().map(function(o){
-      return '<option value="'+o.value+'">'+o.label+'</option>';
-    }).join("");
-    $("schedTarget").addEventListener("change", updateSchedActionVisibility);
-    updateSchedActionVisibility();
-  }
   function loadSchedules(){
     var list = $("schedList");
     haGetAllStates().then(function(all){
@@ -2149,34 +2189,12 @@
       });
     }).catch(function(){ list.innerHTML = '<div class="vrow"><span class="k">Couldn\'t load schedules</span></div>'; });
   }
-  $("schedAddBtn").addEventListener("click", function(){
-    var raw = $("schedTarget").value;
-    var parts = raw.split("|");
-    var domain = parts[0], entity = parts[1];
-    var time = $("schedTime").value;
-    if(!time){ toast("Pick a time first","err"); return; }
-    var turnOn = $("schedAction").checked;
-    var label = $("schedTarget").options[$("schedTarget").selectedIndex].textContent;
-    var actionObj = domain === "scene"
-      ? { action:"scene.turn_on", target:{ entity_id: entity } }
-      : { action: turnOn ? "light.turn_on" : "light.turn_off", target:{ entity_id: entity } };
-    var slugId = "house_schedule_"+entity.replace(/[^a-z0-9]/gi,"_").toLowerCase()+"_"+time.replace(":","")+
-      (domain==="scene" ? "_act" : (turnOn?"_on":"_off"))+"_"+Date.now();
-    var alias = SCHEDULE_PREFIX+label+" "+(domain==="scene"?"(activate)":(turnOn?"(on)":"(off)"))+" at "+time;
-    var config = { alias: alias, triggers:[{ trigger:"time", at: time+":00" }], conditions:[], actions:[actionObj], mode:"single" };
-    withBusy(haConfigPost("config/automation/config/"+slugId, config))
-      .then(function(){
-        toast("Schedule added","ok");
-        setTimeout(loadSchedules, 3000); // HA needs a moment to register the new automation entity
-      })
-      .catch(function(err){ toast("Couldn't add schedule: "+err.message,"err"); });
-  });
-
-  // Quick add — by light: every Plejd light gets its own compact row
-  // (brightness slider + a time-of-day OR sundown-relative trigger) so
-  // scheduling a light doesn't require hunting for it in the generic
-  // dropdown above. Always creates a "turn on to X%" schedule - turning a
-  // light OFF on a schedule is still done via the generic form's Off switch.
+  // Every Plejd light gets its own row: an On/Off action toggle, a
+  // brightness slider (only meaningful for "On", hidden otherwise/for
+  // non-dimmable lights), and a trigger - a fixed time, or relative to
+  // sunrise/sunset (with a +/- minute offset) so e.g. "turn off at sunrise"
+  // or "turn on 20 min before sunset" both just work without picking a
+  // literal clock time that drifts with the seasons.
   function minutesToOffset(mins){
     var sign = mins < 0 ? "-" : "";
     var abs = Math.abs(mins);
@@ -2191,13 +2209,17 @@
           var key = lightSchedKey(l.id);
           var dimmable = l.dimmable !== false;
           return '<div class="light-sched-row" data-entity="'+l.id+'">'+
-            '<div class="light-sched-top"><span class="plejd-light-name">'+l.name+'</span>'+
-            (dimmable ? '<span class="plejd-light-pct" id="'+key+'Pct">50%</span>' : '')+'</div>'+
-            (dimmable ? '<span class="light-sched-bri"><input type="range" id="'+key+'Bri" min="1" max="100" step="1" value="50"></span>' : '')+
+            '<div class="light-sched-top">'+
+              '<span class="plejd-light-name">'+l.name+'</span>'+
+              '<div class="seg" id="'+key+'Action"><button type="button" class="active" data-action="on">On</button><button type="button" data-action="off">Off</button></div>'+
+            '</div>'+
+            (dimmable
+              ? '<div class="light-sched-bri-row" id="'+key+'BriRow"><span class="light-sched-bri"><input type="range" id="'+key+'Bri" min="1" max="100" step="1" value="50"></span><span class="plejd-light-pct" id="'+key+'Pct">50%</span></div>'
+              : '')+
             '<div class="light-sched-when">'+
+              '<select class="sel" id="'+key+'When"><option value="time">At a time</option><option value="sunrise">At sunrise</option><option value="sunset">At sunset</option></select>'+
               '<input type="time" id="'+key+'Time" value="18:00">'+
-              '<label class="chk-inline"><input type="checkbox" id="'+key+'Sun"> Use sundown instead</label>'+
-              '<input type="number" id="'+key+'Off" value="0" title="Minutes before(-)/after(+) sundown" style="display:none">'+
+              '<input type="number" id="'+key+'Off" value="0" title="Minutes before(-)/after(+)" style="display:none">'+
               '<button type="button" class="btn ghost small" data-add-light-sched="'+l.id+'">Add</button>'+
             '</div>'+
           '</div>';
@@ -2213,14 +2235,34 @@
       site.rooms.forEach(function(room){
         room.lights.forEach(function(l){
           var key = lightSchedKey(l.id);
+          var dimmable = l.dimmable !== false;
           var briInput = $(key+"Bri");
           if(briInput){
+            wireBrightnessArrowKeys(briInput);
             briInput.addEventListener("input", function(e){ $(key+"Pct").textContent = e.target.value+"%"; });
           }
-          var sunCheckbox = $(key+"Sun"), timeInput = $(key+"Time"), offInput = $(key+"Off");
-          sunCheckbox.addEventListener("change", function(){
-            timeInput.style.display = sunCheckbox.checked ? "none" : "";
-            offInput.style.display = sunCheckbox.checked ? "" : "none";
+          if(dimmable){
+            var actionSeg = $(key+"Action"), briRow = $(key+"BriRow");
+            actionSeg.querySelectorAll("button").forEach(function(btn){
+              btn.addEventListener("click", function(){
+                actionSeg.querySelectorAll("button").forEach(function(b){ b.classList.remove("active"); });
+                btn.classList.add("active");
+                briRow.style.display = btn.getAttribute("data-action")==="on" ? "" : "none";
+              });
+            });
+          } else {
+            $(key+"Action").querySelectorAll("button").forEach(function(btn){
+              btn.addEventListener("click", function(){
+                $(key+"Action").querySelectorAll("button").forEach(function(b){ b.classList.remove("active"); });
+                btn.classList.add("active");
+              });
+            });
+          }
+          var whenSel = $(key+"When"), timeInput = $(key+"Time"), offInput = $(key+"Off");
+          whenSel.addEventListener("change", function(){
+            var useSun = whenSel.value !== "time";
+            timeInput.style.display = useSun ? "none" : "";
+            offInput.style.display = useSun ? "" : "none";
           });
         });
       });
@@ -2229,27 +2271,28 @@
       btn.addEventListener("click", function(){
         var entity = btn.getAttribute("data-add-light-sched");
         var key = lightSchedKey(entity);
+        var turnOn = $(key+"Action").querySelector(".active").getAttribute("data-action") === "on";
         var briInput = $(key+"Bri");
-        var useSun = $(key+"Sun").checked;
-        var pct = briInput ? parseInt(briInput.value, 10) : null;
+        var pct = (turnOn && briInput) ? parseInt(briInput.value, 10) : null;
         var name = btn.closest(".light-sched-row").querySelector(".plejd-light-name").textContent;
-        var actionObj = { action:"light.turn_on", target:{ entity_id: entity } };
+        var actionObj = { action: turnOn ? "light.turn_on" : "light.turn_off", target:{ entity_id: entity } };
         if(pct) actionObj.data = { brightness_pct: pct };
+        var when = $(key+"When").value; // "time" | "sunrise" | "sunset"
         var trigger, whenLabel, whenSlug;
-        if(useSun){
-          var offMin = parseInt($(key+"Off").value, 10) || 0;
-          trigger = { trigger:"sun", event:"sunset", offset: minutesToOffset(offMin) };
-          whenLabel = "sundown"+(offMin ? (offMin>0?" +"+offMin+"m":" "+offMin+"m") : "");
-          whenSlug = "sunset";
-        } else {
+        if(when === "time"){
           var time = $(key+"Time").value;
           if(!time){ toast("Pick a time first","err"); return; }
           trigger = { trigger:"time", at: time+":00" };
           whenLabel = time;
           whenSlug = time.replace(":","");
+        } else {
+          var offMin = parseInt($(key+"Off").value, 10) || 0;
+          trigger = { trigger:"sun", event: when, offset: minutesToOffset(offMin) };
+          whenLabel = when+(offMin ? (offMin>0?" +"+offMin+"m":" "+offMin+"m") : "");
+          whenSlug = when;
         }
-        var alias = SCHEDULE_PREFIX+name+" (on"+(pct?" "+pct+"%":"")+") at "+whenLabel;
-        var slugId = "house_schedule_"+entity.replace(/[^a-z0-9]/gi,"_").toLowerCase()+"_"+whenSlug+"_"+Date.now();
+        var alias = SCHEDULE_PREFIX+name+" ("+(turnOn?"on"+(pct?" "+pct+"%":""):"off")+") at "+whenLabel;
+        var slugId = "house_schedule_"+entity.replace(/[^a-z0-9]/gi,"_").toLowerCase()+"_"+(turnOn?"on":"off")+"_"+whenSlug+"_"+Date.now();
         var config = { alias: alias, triggers:[trigger], conditions:[], actions:[actionObj], mode:"single" };
         withBusy(haConfigPost("config/automation/config/"+slugId, config))
           .then(function(){
@@ -2263,8 +2306,74 @@
   buildLightScheduleUI();
   wireLightSchedules();
 
-  buildSchedForm();
   loadSchedules();
+
+  // Alarm: a Sonos wake-up message at a chosen volume, on chosen days of the
+  // week. Same automation-config REST mechanism as the lighting schedules
+  // above (a "time" trigger, gated by a "time" condition's weekday list so
+  // one automation can cover any combination of days instead of needing 7),
+  // with a 2-step action: set the speaker's volume, then speak the message
+  // via the same TTS provider/service the Sonos cards' own "Play" button uses.
+  var ALARM_PREFIX = "House alarm: ";
+  var ALARM_DAY_LABELS = {mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
+  function wireAlarm(){
+    $("alarmVol").addEventListener("input", function(e){ $("alarmVolVal").textContent = e.target.value+"%"; });
+    $("alarmAddBtn").addEventListener("click", function(){
+      var msg = $("alarmText").value.trim();
+      if(!msg){ toast("Type a message first","err"); return; }
+      var lang = $("alarmLang").value;
+      var speakerKey = $("alarmSpeaker").value;
+      var entity = EH[speakerKey];
+      var speakerLabel = $("alarmSpeaker").options[$("alarmSpeaker").selectedIndex].textContent;
+      var vol = parseInt($("alarmVol").value, 10);
+      var time = $("alarmTime").value;
+      if(!time){ toast("Pick a time first","err"); return; }
+      var days = Array.prototype.slice.call(document.querySelectorAll("#alarmDays input:checked")).map(function(cb){ return cb.value; });
+      if(!days.length){ toast("Pick at least one day","err"); return; }
+      var dayLabel = days.length===7 ? "every day" : days.map(function(d){ return ALARM_DAY_LABELS[d]; }).join(", ");
+      var alias = ALARM_PREFIX+speakerLabel+" "+time+" ("+dayLabel+")";
+      var slugId = "house_alarm_"+speakerKey.toLowerCase()+"_"+time.replace(":","")+"_"+Date.now();
+      var config = {
+        alias: alias,
+        triggers:[{ trigger:"time", at: time+":00" }],
+        conditions:[{ condition:"time", weekday: days }],
+        actions:[
+          { action:"media_player.volume_set", target:{ entity_id: entity }, data:{ volume_level: vol/100 } },
+          { action:"tts.speak", target:{ entity_id: TTS_ENTITY }, data:{ media_player_entity_id: entity, message: msg, language: lang } }
+        ],
+        mode:"single"
+      };
+      withBusy(haConfigPost("config/automation/config/"+slugId, config))
+        .then(function(){
+          toast("Alarm added","ok");
+          setTimeout(loadAlarms, 3000);
+        })
+        .catch(function(err){ toast("Couldn't add alarm: "+err.message,"err"); });
+    });
+  }
+  function loadAlarms(){
+    var list = $("alarmList");
+    haGetAllStates().then(function(all){
+      var alarms = all.filter(function(e){
+        return e.entity_id.indexOf("automation.")===0 && (e.attributes.friendly_name||"").indexOf(ALARM_PREFIX)===0;
+      });
+      if(!alarms.length){ list.innerHTML = '<div class="vrow"><span class="k">No alarms yet</span></div>'; return; }
+      list.innerHTML = alarms.map(function(a){
+        var name = (a.attributes.friendly_name||"").slice(ALARM_PREFIX.length);
+        return '<div class="vrow"><span class="k">'+name+'</span>'+
+          '<span class="v"><button type="button" class="btn ghost small" data-del-alarm="'+a.attributes.id+'">Delete</button></span></div>';
+      }).join("");
+      document.querySelectorAll("[data-del-alarm]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          withBusy(haConfigDelete("config/automation/config/"+btn.getAttribute("data-del-alarm")))
+            .then(function(){ toast("Alarm removed","ok"); loadAlarms(); })
+            .catch(function(err){ toast("Couldn't remove alarm: "+err.message,"err"); });
+        });
+      });
+    }).catch(function(){ list.innerHTML = '<div class="vrow"><span class="k">Couldn\'t load alarms</span></div>'; });
+  }
+  wireAlarm();
+  loadAlarms();
 
   // Collapsible House cards - wraps everything after each card's <h2> into
   // a toggleable body, generated at runtime rather than hand-editing every
@@ -2527,33 +2636,6 @@
   // home-screen users land on the page they already know after this ships.
   showPage("car");
 
-  // Swipe left/right between Car -> House -> Elpris. Ignored when the swipe
-  // starts on something that already owns horizontal drag gestures (sliders,
-  // the segmented switches, a horizontally-scrolling table) so it doesn't
-  // fight those controls. Note: while the Elpris page is showing, a swipe
-  // that starts inside the embedded iframe can't be seen from here (it's a
-  // separate document) - swiping from the header/tab area above the iframe
-  // still works from any page.
-  (function(){
-    var startX=null, startY=null, startEl=null;
-    var THRESHOLD=60, RESTRAINT=75;
-    document.addEventListener("touchstart", function(e){
-      if(e.touches.length!==1) return;
-      startX = e.touches[0].clientX; startY = e.touches[0].clientY; startEl = e.target;
-    }, {passive:true});
-    document.addEventListener("touchend", function(e){
-      if(startX===null) return;
-      var t = e.changedTouches[0];
-      var dx = t.clientX-startX, dy = t.clientY-startY;
-      startX = null;
-      if(Math.abs(dx) < THRESHOLD || Math.abs(dy) > RESTRAINT) return;
-      if(startEl && startEl.closest && startEl.closest("input[type=range],.seg,select,input,textarea,.charge-table-wrap,iframe,.plejd-room-label")) return;
-      var idx = PAGES.indexOf(activePage);
-      if(dx < 0 && idx < PAGES.length-1) showPage(PAGES[idx+1]); // swipe left -> next page
-      else if(dx > 0 && idx > 0) showPage(PAGES[idx-1]); // swipe right -> previous page
-    }, {passive:true});
-  })();
-
   // ---- previous charges table (log kept by the mirror, served by the control server) ----
   function fmtDur(ms){
     var min = Math.round(ms/60000);
@@ -2744,20 +2826,18 @@
     setTimeout(function(){ c.classList.add("ready"); }, 700 + i*70);
   });
 
-  // ---- card spotlight + 3D tilt ----
+  // ---- card mouse-spotlight glow ----
+  // The 3D tilt that used to accompany this (rotateX/rotateY following the
+  // cursor) is scrapped - it didn't work well on mobile, since a touch tap
+  // can synthesize a single mousemove with no matching mouseleave, leaving
+  // a card stuck visibly rotated instead of resetting.
   cardEls.forEach(function(card){
     card.addEventListener("mousemove", function(e){
       var r = card.getBoundingClientRect();
       var x = e.clientX - r.left, y = e.clientY - r.top;
       card.style.setProperty("--mx", (x/r.width*100)+"%");
       card.style.setProperty("--my", (y/r.height*100)+"%");
-      if(!reduceMotion){
-        var rx = ((y/r.height)-0.5) * -6;
-        var ry = ((x/r.width)-0.5) * 8;
-        card.style.transform = "perspective(900px) rotateX("+rx.toFixed(2)+"deg) rotateY("+ry.toFixed(2)+"deg) translateY(-4px)";
-      }
     });
-    card.addEventListener("mouseleave", function(){ card.style.transform = ""; });
   });
 
   // ---- ripple on buttons ----
