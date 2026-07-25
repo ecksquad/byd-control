@@ -1431,18 +1431,32 @@
   var lastFetchAt = null; // epoch ms of last successful fetchAll - feeds the House page's #lastUpdated
   var activePage = "car";
 
+  // One bulk /ha/states call instead of ~130 individual /ha/states/<id>
+  // requests. Both were already "parallel" code-side (Promise.all), but the
+  // browser still caps concurrent connections per origin (6 on plain HTTP/1.1,
+  // which is what the control server's Flask dev server speaks) - 130
+  // individual requests over a Tailscale tunnel end up queued in batches of
+  // ~6 regardless, which is the actual "many seconds" cost this was paying.
+  // A single bulk fetch sidesteps that entirely.
   function fetchAll(){
     var ids = Object.keys(E).map(function(k){ return E[k]; })
       .concat(Object.keys(EH).map(function(k){ return EH[k]; }))
       .concat(allPlejdLightIds());
-    return Promise.all(ids.map(function(id){
-      return haGet(id).then(function(s){ return {id:id, s:s}; }).catch(function(){ return {id:id, s:null}; });
-    })).then(function(results){
-      var anyOk = results.some(function(r){ return r.s !== null; });
+    return haGetAllStates().then(function(all){
+      var byId = {};
+      all.forEach(function(s){ byId[s.entity_id] = s; });
+      var anyOk = false;
+      ids.forEach(function(id){
+        var s = byId[id] || null;
+        if(s !== null) anyOk = true;
+        state[id] = s;
+      });
       lastFetchOk = anyOk;
       if(anyOk) lastFetchAt = Date.now();
-      results.forEach(function(r){ state[r.id]=r.s; });
       return anyOk;
+    }).catch(function(){
+      lastFetchOk = false;
+      return false;
     });
   }
 
@@ -2452,11 +2466,13 @@
     });
     $(prefix+"Prev").addEventListener("click", function(){
       withBusy(haCall("media_player","media_previous_track",{entity_id:entity}))
-        .then(refresh).catch(function(){ toast("Failed","err"); refresh(); });
+        .then(function(){ setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(){ toast("Failed","err"); refreshOne(entity); });
     });
     $(prefix+"Next").addEventListener("click", function(){
       withBusy(haCall("media_player","media_next_track",{entity_id:entity}))
-        .then(refresh).catch(function(){ toast("Failed","err"); refresh(); });
+        .then(function(){ setTimeout(function(){ refreshOne(entity); }, 1500); })
+        .catch(function(){ toast("Failed","err"); refreshOne(entity); });
     });
   }
 
