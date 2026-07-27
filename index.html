@@ -1289,7 +1289,8 @@
       ]},
       { label: "Vardagsrum", icon: "🛋️", lights: [
         { id: "light.vardagsrum_spottar_tak", name: "Spottar tak" },
-        { id: "light.vardagsrum_spottar_vagg", name: "Spottar vägg" }
+        { id: "light.vardagsrum_spottar_vagg", name: "Spottar vägg" },
+        { id: "light.vardagsrum_side_lamp", name: "Side lamp", dimmable: false }
       ]}
     ]}
   ];
@@ -2369,7 +2370,7 @@
   // PLEJD_SITES doesn't stop the physical scene from still toggling it.
   // Tracked here purely so the snapshot/restore still covers it; the real
   // fix is editing the two scenes in the Plejd app to drop it entirely.
-  var STORM_EXTRA_RESTORE_IDS = ["light.vardagsrum_side_lamp"];
+  var STORM_EXTRA_RESTORE_IDS = [];
   function stormRestoreIds(){ return allPlejdLightIds().concat(STORM_EXTRA_RESTORE_IDS); }
   var stormActive = false;
   var stormTimer = null;
