@@ -842,6 +842,11 @@
       </div>
       <div class="grp-label">Active alarms</div>
       <div id="alarmList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
+      <div class="grp-label" style="margin-top:14px">Defaults</div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Sonos volume on startup</div><div class="d">Resets both speakers to 10% whenever Home Assistant restarts</div></div>
+        <button class="btn ghost small" id="sonosDefaultVolBtn">Set 10% default</button>
+      </div>
     </div>
 
     <div class="card c-sonos-tv">
@@ -2682,6 +2687,11 @@
   // via the same TTS provider/service the Sonos cards' own "Play" button uses.
   var ALARM_PREFIX = "House alarm: ";
   var ALARM_DAY_LABELS = {mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
+  var SONOS_DEFAULT_VOL = 0.10;
+  // Rough estimate of how long a TTS message takes to finish speaking (~12
+  // chars/sec, floor of 10s) - used to time the "reset to 10%" step so it
+  // lands after the message actually finishes instead of cutting it off.
+  function ttsDelaySeconds(msg){ return Math.max(10, Math.ceil(msg.length/12)); }
   // "both" isn't a real HA entity - it fans out to both Sonos speakers at
   // once (media_player/tts services both accept a list of entity_ids).
   function alarmSpeakerEntity(speakerKey){
@@ -2700,7 +2710,12 @@
         .then(function(){
           return haCall("tts", "speak", { entity_id: TTS_ENTITY, media_player_entity_id: entity, message: msg, language: lang });
         }))
-        .then(function(){ toast("Playing test alarm now","ok"); })
+        .then(function(){
+          toast("Playing test alarm now","ok");
+          setTimeout(function(){
+            haCall("media_player", "volume_set", { entity_id: [EH.sonosTv, EH.sonosKitchen], volume_level: SONOS_DEFAULT_VOL }).catch(function(){});
+          }, ttsDelaySeconds(msg) * 1000);
+        })
         .catch(function(err){ toast("Couldn't play test alarm: "+err.message,"err"); });
     });
     $("alarmAddBtn").addEventListener("click", function(){
@@ -2724,7 +2739,9 @@
         conditions:[{ condition:"time", weekday: days }],
         actions:[
           { action:"media_player.volume_set", target:{ entity_id: entity }, data:{ volume_level: vol/100 } },
-          { action:"tts.speak", target:{ entity_id: TTS_ENTITY }, data:{ media_player_entity_id: entity, message: msg, language: lang } }
+          { action:"tts.speak", target:{ entity_id: TTS_ENTITY }, data:{ media_player_entity_id: entity, message: msg, language: lang } },
+          { delay: { seconds: ttsDelaySeconds(msg) } },
+          { action:"media_player.volume_set", target:{ entity_id: [EH.sonosTv, EH.sonosKitchen] }, data:{ volume_level: SONOS_DEFAULT_VOL } }
         ],
         mode:"single"
       };
@@ -2734,6 +2751,22 @@
           setTimeout(loadAlarms, 3000);
         })
         .catch(function(err){ toast("Couldn't add alarm: "+err.message,"err"); });
+    });
+    // Fixed (non-timestamped) automation id - re-clicking updates the same
+    // automation instead of creating a duplicate each time.
+    $("sonosDefaultVolBtn").addEventListener("click", function(){
+      var config = {
+        alias: "House default: Sonos volume "+Math.round(SONOS_DEFAULT_VOL*100)+"% on startup",
+        triggers:[{ trigger:"homeassistant", event:"start" }],
+        conditions:[],
+        actions:[
+          { action:"media_player.volume_set", target:{ entity_id: [EH.sonosTv, EH.sonosKitchen] }, data:{ volume_level: SONOS_DEFAULT_VOL } }
+        ],
+        mode:"single"
+      };
+      withBusy(haConfigPost("config/automation/config/house_sonos_default_volume_startup", config))
+        .then(function(){ toast("Both speakers will reset to 10% after any HA restart","ok"); })
+        .catch(function(err){ toast("Couldn't set startup default: "+err.message,"err"); });
     });
   }
   function loadAlarms(){
