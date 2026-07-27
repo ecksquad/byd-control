@@ -508,6 +508,14 @@
   .toast.err{color:var(--bad)}
   .toast.ok{color:var(--good)}
 
+  /* logo easter egg confetti */
+  .confetti-piece{position:fixed;top:-16px;width:8px;height:14px;border-radius:2px;pointer-events:none;z-index:80;
+    animation-name:confettiFall;animation-timing-function:cubic-bezier(.4,.1,.6,.9);animation-fill-mode:forwards;opacity:.95}
+  @keyframes confettiFall{
+    0%{transform:translateY(0) rotate(0deg);opacity:.95}
+    100%{transform:translateY(105vh) rotate(var(--rot));opacity:0}
+  }
+
   /* settings modal */
   .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
   .modal-veil.show{display:flex}
@@ -1208,6 +1216,8 @@
     backDoorLock: "lock.back_door",
 
     nordPoolPrice: "sensor.nord_pool_se3_current_price",
+    nordPoolLowest: "sensor.nord_pool_se3_lowest_price",
+    nordPoolHighest: "sensor.nord_pool_se3_highest_price",
 
     backupState: "sensor.backup_backup_manager_state",
     backupLastSuccess: "sensor.backup_last_successful_automatic_backup",
@@ -1420,6 +1430,36 @@
     return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   }
   applyTheme(currentTheme());
+
+  // Mood accent: the app's teal accent nudges toward green when
+  // electricity is cheap and toward warm red when it's expensive, scaled
+  // against *today's* actual lowest/highest Nord Pool price rather than a
+  // fixed threshold that would need re-tuning every season. Sits at the
+  // normal teal hue when price is near the middle of today's range, so most
+  // of the time the app looks exactly as it always has - a glanceable vibe,
+  // not another number to read. Only hue moves; saturation/lightness stay
+  // pinned to the theme's own values so it never looks more "neon" or
+  // washed out than the rest of the UI.
+  var ACCENT_HSL = { dark: { s: 73, l: 54 }, light: { s: 83, l: 33 } };
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  function applyPriceMood(price, lowest, highest){
+    var root = document.documentElement;
+    if(price===null || lowest===null || highest===null || highest<=lowest){
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--accent-soft");
+      return;
+    }
+    var score = Math.max(0, Math.min(1, (price - lowest) / (highest - lowest)));
+    var cheapHue = 155, baseHue = 170, pricyHue = 18;
+    var hue = Math.round(score < 0.5
+      ? lerp(cheapHue, baseHue, score / 0.5)
+      : lerp(baseHue, pricyHue, (score - 0.5) / 0.5));
+    var sl = currentTheme() === "light" ? ACCENT_HSL.light : ACCENT_HSL.dark;
+    root.style.setProperty("--accent", "hsl(" + hue + ", " + sl.s + "%, " + sl.l + "%)");
+    root.style.setProperty("--accent-soft", currentTheme() === "light"
+      ? "hsl(" + hue + ", " + sl.s + "%, 94%)"
+      : "hsla(" + hue + ", " + sl.s + "%, " + sl.l + "%, .14)");
+  }
 
   var toastTimer=null;
   function toast(msg, kind){
@@ -1926,6 +1966,7 @@
     // Electricity price
     var price = num(state[EH.nordPoolPrice]);
     $("housePriceNow").textContent = price!==null ? price.toFixed(2)+" kr/kWh" : "-- kr/kWh";
+    applyPriceMood(price, num(state[EH.nordPoolLowest]), num(state[EH.nordPoolHighest]));
 
     // HA Backup
     var bState = state[EH.backupState];
@@ -3169,7 +3210,92 @@
 
   $("themeToggleBtn").addEventListener("click", function(){
     applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    render();
   });
+
+  // Easter egg: 5 taps on the header mark within 2s fires a confetti burst
+  // and a synthesized moo (Web Audio - no audio asset to ship/license).
+  // Entirely load-bearing on nothing else; failures are swallowed so a
+  // browser without AudioContext support just silently skips the sound.
+  function playMoo(volume){
+    try{
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      var ctx = new Ctx();
+      var now = ctx.currentTime;
+      var gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(volume, now + 0.08);
+      gain.gain.linearRampToValueAtTime(volume * 0.85, now + 0.5);
+      gain.gain.linearRampToValueAtTime(0, now + 1.1);
+      gain.connect(ctx.destination);
+
+      var osc1 = ctx.createOscillator();
+      osc1.type = "sawtooth";
+      osc1.frequency.setValueAtTime(110, now);
+      osc1.frequency.linearRampToValueAtTime(85, now + 0.35);
+      osc1.frequency.linearRampToValueAtTime(70, now + 1.0);
+
+      var osc2 = ctx.createOscillator();
+      osc2.type = "triangle";
+      osc2.frequency.setValueAtTime(220, now);
+      osc2.frequency.linearRampToValueAtTime(170, now + 0.35);
+      osc2.frequency.linearRampToValueAtTime(140, now + 1.0);
+      var osc2Gain = ctx.createGain();
+      osc2Gain.gain.value = 0.4;
+
+      var lfo = ctx.createOscillator();
+      lfo.frequency.value = 6;
+      var lfoGain = ctx.createGain();
+      lfoGain.gain.value = 8;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.frequency);
+      lfoGain.connect(osc2.frequency);
+
+      osc1.connect(gain);
+      osc2.connect(osc2Gain);
+      osc2Gain.connect(gain);
+
+      osc1.start(now); osc2.start(now); lfo.start(now);
+      osc1.stop(now + 1.15); osc2.stop(now + 1.15); lfo.stop(now + 1.15);
+      setTimeout(function(){ ctx.close(); }, 1300);
+    }catch(e){}
+  }
+  function fireConfetti(){
+    if(reduceMotion) return;
+    var colors = ["var(--accent)","var(--good)","var(--warn)","var(--bad)","var(--ink)"];
+    var frag = document.createDocumentFragment();
+    var pieces = [];
+    for(var i=0;i<60;i++){
+      var el = document.createElement("i");
+      el.className = "confetti-piece";
+      el.style.left = (Math.random()*100)+"vw";
+      el.style.background = colors[Math.floor(Math.random()*colors.length)];
+      el.style.animationDelay = (Math.random()*0.3)+"s";
+      el.style.animationDuration = (1.6+Math.random()*1.2)+"s";
+      el.style.setProperty("--rot", Math.round(Math.random()*720-360)+"deg");
+      frag.appendChild(el);
+      pieces.push(el);
+    }
+    document.body.appendChild(frag);
+    setTimeout(function(){ pieces.forEach(function(el){ el.remove(); }); }, 3200);
+  }
+  (function wireLogoEasterEgg(){
+    var logo = document.querySelector(".h-logo");
+    if(!logo) return;
+    logo.style.cursor = "pointer";
+    var taps = [];
+    logo.addEventListener("click", function(){
+      var now = Date.now();
+      taps = taps.filter(function(t){ return now - t < 2000; });
+      taps.push(now);
+      if(taps.length >= 5){
+        taps = [];
+        fireConfetti();
+        playMoo(0.5);
+      }
+    });
+  })();
 
   $("refreshBtn").addEventListener("click", function(){
     if(!reduceMotion){ this.classList.remove("spin"); void this.offsetWidth; this.classList.add("spin"); }
