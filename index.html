@@ -81,6 +81,10 @@
   header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px}
   .h-left{display:flex;align-items:center;gap:14px}
   .h-brand{display:flex;flex-direction:column}
+  .h-titlewrap{display:flex;align-items:stretch;gap:10px}
+  .h-logo{align-self:stretch;aspect-ratio:434/475;flex:none;background-color:var(--ink);
+    -webkit-mask:url('stormbull-logo.png') center/contain no-repeat;
+    mask:url('stormbull-logo.png') center/contain no-repeat}
   .h-title{font-size:clamp(22px,4.2vw,30px);font-weight:800;letter-spacing:.06em;text-transform:uppercase;
     line-height:1.05;background:linear-gradient(100deg, var(--ink) 35%, var(--accent) 130%);
     -webkit-background-clip:text;background-clip:text;color:transparent}
@@ -531,9 +535,12 @@
 <div class="wrap">
   <header>
     <div class="h-left">
-      <div class="h-brand">
-        <div class="h-title">Stormbull<small>Car &amp; House</small></div>
-        <div class="h-sub" id="lastUpdated">—</div>
+      <div class="h-titlewrap">
+        <span class="h-logo" aria-hidden="true"></span>
+        <div class="h-brand">
+          <div class="h-title">Stormbull<small>Car &amp; House</small></div>
+          <div class="h-sub" id="lastUpdated">—</div>
+        </div>
       </div>
       <span class="pill offline" id="onlinePill"><span class="dot"></span><span>—</span></span>
     </div>
