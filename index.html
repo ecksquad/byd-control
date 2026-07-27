@@ -788,11 +788,6 @@
           <div class="ctl-label"><div class="t">⚡ Storm mode</div><div class="d">Flashes every light in the house, then restores them</div></div>
           <label class="switch" id="stormModeWrap"><input type="checkbox" id="stormModeToggle"><span class="track"></span><span class="knob"></span></label>
         </div>
-        <div class="range-row">
-          <div class="rr-top"><span class="k">Flashes per second</span><span class="v" id="stormRateVal">7</span></div>
-          <input type="range" id="stormRate" min="1" max="15" step="1" value="7">
-        </div>
-        <div style="margin-top:-4px;font-size:12px;color:var(--muted)">This is a ceiling, not a guarantee — the Plejd lights themselves cap how fast they can actually keep up</div>
       </div>
       <div id="lightingRooms"></div>
     </div>
@@ -1262,9 +1257,6 @@
       { label: "Toalett", icon: "🚿", lights: [
         { id: "light.toalett_spottar", name: "Spottar" },
         { id: "light.toalett_spegel", name: "Spegel" }
-      ]},
-      { label: "Vardagsrum", icon: "🛋️", lights: [
-        { id: "light.vardagsrum_side_lamp", name: "Side lamp", dimmable: false }
       ]}
     ]},
     { name: "Cellar", collapsible: true, defaultCollapsed: true, rooms: [
@@ -2328,11 +2320,12 @@
   // light individually, unchanged.
   var STORM_SCENE_ON = "scene.stormon";
   var STORM_SCENE_OFF = "scene.stormoff";
+  var STORM_RATE_HZ = 3; // fixed - fast enough to read as a strobe, slow enough the mesh keeps up
   var stormActive = false;
   var stormTimer = null;
   var stormPhaseOn = false;
   var stormPreState = null;
-  function stormIntervalMs(){ return Math.round(1000 / (parseInt($("stormRate").value, 10) || 7)); }
+  function stormIntervalMs(){ return Math.round(1000 / STORM_RATE_HZ); }
   function stormLoopStep(){
     if(!stormActive) return;
     stormPhaseOn = !stormPhaseOn;
@@ -2344,19 +2337,48 @@
       stormTimer = setTimeout(stormLoopStep, wait);
     });
   }
-  function startStorm(){
-    stormPreState = {};
+  function snapshotFromCache(){
+    var snap = {};
     allPlejdLightIds().forEach(function(id){
       var s = state[id];
       var isOn = on(s);
       var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
         ? Math.round(s.attributes.brightness/255*100) : null;
-      stormPreState[id] = { on: isOn, pct: pct };
+      snap[id] = { on: isOn, pct: pct };
     });
+    return snap;
+  }
+  function startStorm(){
     stormActive = true;
     stormPhaseOn = false;
     clearTimeout(stormTimer);
-    stormLoopStep();
+    // Snapshot from a fresh /api/states call rather than the locally cached
+    // `state` object, which is only as recent as the last ~poll and can be
+    // stale enough (especially right after reconnecting the Plejd
+    // integration to make scenes in the app) that "restore" was putting
+    // lights back into a wrong state that was never really their state to
+    // begin with. Falls back to the local cache if the fetch fails, so a
+    // flaky request doesn't block Storm mode from starting at all. Flashing
+    // itself only begins once the snapshot is actually in hand - starting
+    // it in parallel with the fetch would let a very-quick stop race past
+    // an empty stormPreState and skip the restore entirely.
+    haGetAllStates().then(function(all){
+      var byId = {};
+      all.forEach(function(s){ byId[s.entity_id] = s; });
+      var snap = {};
+      allPlejdLightIds().forEach(function(id){
+        var s = byId[id] || null;
+        var isOn = on(s);
+        var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
+          ? Math.round(s.attributes.brightness/255*100) : null;
+        snap[id] = { on: isOn, pct: pct };
+      });
+      stormPreState = snap;
+    }).catch(function(){
+      stormPreState = snapshotFromCache();
+    }).then(function(){
+      if(stormActive) stormLoopStep();
+    });
   }
   function stopStorm(){
     if(!stormActive) return;
@@ -2383,24 +2405,19 @@
       if(offIds.length) calls.push(haCall("light", "turn_off", { entity_id: offIds }));
       return Promise.all(calls.map(function(p){ return p.catch(function(){}); }));
     }
-    // Fire the restore more than once over the next several seconds - the
-    // last flash ticks can still be in flight on the slow Plejd BLE mesh
-    // (documented elsewhere as 1-5s to confirm) when Storm mode stops, and
-    // a straggler landing after a single restore call would leave that
-    // light on the wrong state. Repeating it outlasts any stragglers.
+    // Fire the restore repeatedly over the following ~15s rather than once -
+    // a scene broadcast still has to physically propagate hop-by-hop across
+    // a 26-device BLE mesh, and a straggler still catching up to the last
+    // "on" scene can land after a single restore call and leave that light
+    // wrong. Each resend re-asserts the correct final state, so it outlasts
+    // stragglers regardless of how long that takes.
     fireRestore().then(function(){
       allPlejdLightIds().forEach(function(id){ reconcileLightSoon(id); });
     });
-    [1500, 3500, 7000].forEach(function(delay){ setTimeout(fireRestore, delay); });
+    [1000, 2000, 3500, 5500, 8000, 12000, 16000].forEach(function(delay){ setTimeout(fireRestore, delay); });
   }
   function wireStormMode(){
-    var toggle = $("stormModeToggle"), rate = $("stormRate"), rateVal = $("stormRateVal");
-    rate.addEventListener("input", function(){
-      rateVal.textContent = rate.value;
-      // stormLoopStep() re-reads stormIntervalMs() each time it schedules the
-      // next tick, so a rate change while running just takes effect on the
-      // next tick - nothing to restart here.
-    });
+    var toggle = $("stormModeToggle");
     toggle.addEventListener("change", function(e){
       if(e.target.checked){
         startStorm();
