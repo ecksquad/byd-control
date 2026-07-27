@@ -842,11 +842,6 @@
       </div>
       <div class="grp-label">Active alarms</div>
       <div id="alarmList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
-      <div class="grp-label" style="margin-top:14px">Defaults</div>
-      <div class="ctl-row">
-        <div class="ctl-label"><div class="t">Sonos volume on startup</div><div class="d">Resets both speakers to 10% whenever Home Assistant restarts</div></div>
-        <button class="btn ghost small" id="sonosDefaultVolBtn">Set 10% default</button>
-      </div>
     </div>
 
     <div class="card c-sonos-tv">
@@ -2751,22 +2746,6 @@
           setTimeout(loadAlarms, 3000);
         })
         .catch(function(err){ toast("Couldn't add alarm: "+err.message,"err"); });
-    });
-    // Fixed (non-timestamped) automation id - re-clicking updates the same
-    // automation instead of creating a duplicate each time.
-    $("sonosDefaultVolBtn").addEventListener("click", function(){
-      var config = {
-        alias: "House default: Sonos volume "+Math.round(SONOS_DEFAULT_VOL*100)+"% on startup",
-        triggers:[{ trigger:"homeassistant", event:"start" }],
-        conditions:[],
-        actions:[
-          { action:"media_player.volume_set", target:{ entity_id: [EH.sonosTv, EH.sonosKitchen] }, data:{ volume_level: SONOS_DEFAULT_VOL } }
-        ],
-        mode:"single"
-      };
-      withBusy(haConfigPost("config/automation/config/house_sonos_default_volume_startup", config))
-        .then(function(){ toast("Both speakers will reset to 10% after any HA restart","ok"); })
-        .catch(function(err){ toast("Couldn't set startup default: "+err.message,"err"); });
     });
   }
   function loadAlarms(){
