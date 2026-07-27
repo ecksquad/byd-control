@@ -3223,52 +3223,24 @@
   });
 
   // Easter egg: 5 taps on the header mark within 2s fires a confetti burst
-  // and a synthesized moo (Web Audio - no audio asset to ship/license).
-  // Entirely load-bearing on nothing else; failures are swallowed so a
-  // browser without AudioContext support just silently skips the sound.
+  // and a real cow moo played through both Sonos speakers (a synthesized
+  // Web Audio version was tried first and just sounded bad - a genuine
+  // recording is what actually reads as a moo). "Cow Moo" by Mike Koenig,
+  // soundbible.com, CC BY 3.0 - hosted alongside index.html rather than
+  // linked from soundbible.com directly since Sonos fetches the URL itself
+  // and shouldn't depend on a third-party site staying up.
+  var MOO_URL = "https://ecksquad.github.io/byd-control/moo.mp3";
   function playMoo(volume){
-    try{
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if(!Ctx) return;
-      var ctx = new Ctx();
-      var now = ctx.currentTime;
-      var gain = ctx.createGain();
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(volume, now + 0.08);
-      gain.gain.linearRampToValueAtTime(volume * 0.85, now + 0.5);
-      gain.gain.linearRampToValueAtTime(0, now + 1.1);
-      gain.connect(ctx.destination);
-
-      var osc1 = ctx.createOscillator();
-      osc1.type = "sawtooth";
-      osc1.frequency.setValueAtTime(110, now);
-      osc1.frequency.linearRampToValueAtTime(85, now + 0.35);
-      osc1.frequency.linearRampToValueAtTime(70, now + 1.0);
-
-      var osc2 = ctx.createOscillator();
-      osc2.type = "triangle";
-      osc2.frequency.setValueAtTime(220, now);
-      osc2.frequency.linearRampToValueAtTime(170, now + 0.35);
-      osc2.frequency.linearRampToValueAtTime(140, now + 1.0);
-      var osc2Gain = ctx.createGain();
-      osc2Gain.gain.value = 0.4;
-
-      var lfo = ctx.createOscillator();
-      lfo.frequency.value = 6;
-      var lfoGain = ctx.createGain();
-      lfoGain.gain.value = 8;
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc1.frequency);
-      lfoGain.connect(osc2.frequency);
-
-      osc1.connect(gain);
-      osc2.connect(osc2Gain);
-      osc2Gain.connect(gain);
-
-      osc1.start(now); osc2.start(now); lfo.start(now);
-      osc1.stop(now + 1.15); osc2.stop(now + 1.15); lfo.stop(now + 1.15);
-      setTimeout(function(){ ctx.close(); }, 1300);
-    }catch(e){}
+    var speakers = [EH.sonosTv, EH.sonosKitchen];
+    haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
+      .then(function(){
+        return haCall("media_player", "play_media", {
+          entity_id: speakers,
+          media_content_id: MOO_URL,
+          media_content_type: "music"
+        });
+      })
+      .catch(function(){});
   }
   function fireConfetti(){
     if(reduceMotion) return;
