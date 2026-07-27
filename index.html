@@ -3242,12 +3242,12 @@
   // soundbible.com, CC BY 3.0 - hosted alongside index.html rather than
   // linked from soundbible.com directly since Sonos fetches the URL itself
   // and shouldn't depend on a third-party site staying up. A thunder crack
-  // follows immediately after - "Thunder 02" by Mark DiAngelo, same site,
-  // same CC BY 3.0 license - completing the Stormbull pun (storm + bull).
+  // follows right after (Pixabay Content License, no attribution required)
+  // - completing the Stormbull pun (storm + bull).
   var MOO_URL = "https://ecksquad.github.io/byd-control/moo.mp3";
   var THUNDER_URL = "https://ecksquad.github.io/byd-control/thunder.mp3";
-  var MOO_DURATION_MS = 3700; // moo.mp3 runs ~3.64s - queue the thunder right as it ends
-  var THUNDER_DURATION_MS = 5100; // thunder.mp3 runs ~4.99s - restore volume once it's done
+  var MOO_DURATION_MS = 3000; // moo.mp3 runs ~3.64s - start the thunder ~0.6s before its tail ends, a bit of overlap instead of a hard cut
+  var THUNDER_DURATION_MS = 7300; // thunder.mp3 runs ~7.16s - restore volume once it's done
   function playThunder(volume){
     var speakers = [EH.sonosTv, EH.sonosKitchen];
     haCall("media_player", "play_media", {
