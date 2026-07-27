@@ -220,6 +220,8 @@
   .plejd-light-bri input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);
     border:none;cursor:pointer}
   .plejd-light-pct{flex:0 0 34px;text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .storm-mode-row{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .storm-mode-row .range-row{border-bottom:none;padding-bottom:0}
 
   /* Daikin circular dial - visual centerpiece, mirrors the style of HA's
      own climate card rather than a bare +/- stepper */
@@ -772,6 +774,16 @@
     <div class="card c-lighting">
       <h2><span class="htitle"><span class="hicon">💡</span>Lighting — Plejd</span></h2>
       <div class="chips" id="lightingScenes" style="margin-bottom:14px"></div>
+      <div class="storm-mode-row">
+        <div class="ctl-row">
+          <div class="ctl-label"><div class="t">⚡ Storm mode</div><div class="d">Flashes every light in the house, then restores them</div></div>
+          <label class="switch" id="stormModeWrap"><input type="checkbox" id="stormModeToggle"><span class="track"></span><span class="knob"></span></label>
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Flashes per second</span><span class="v" id="stormRateVal">7</span></div>
+          <input type="range" id="stormRate" min="1" max="15" step="1" value="7">
+        </div>
+      </div>
       <div id="lightingRooms"></div>
     </div>
 
@@ -2288,6 +2300,84 @@
     });
   }
 
+  // Storm mode: flash every Plejd light on/off in unison, then put each one
+  // back exactly how it was found. One HA service call per tick with
+  // entity_id as an array (rather than one call per light) - at up to 15
+  // flashes/sec that's the difference between ~15 requests/sec and ~400,
+  // and the Plejd BLE mesh already struggles to keep up with the former.
+  var stormActive = false;
+  var stormTimer = null;
+  var stormPhaseOn = false;
+  var stormPreState = null;
+  function stormIntervalMs(){ return Math.round(1000 / (parseInt($("stormRate").value, 10) || 7)); }
+  function stormTick(){
+    stormPhaseOn = !stormPhaseOn;
+    var ids = allPlejdLightIds();
+    if(stormPhaseOn){
+      haCall("light", "turn_on", { entity_id: ids, brightness_pct: 100 }).catch(function(){});
+    } else {
+      haCall("light", "turn_off", { entity_id: ids }).catch(function(){});
+    }
+  }
+  function startStorm(){
+    stormPreState = {};
+    allPlejdLightIds().forEach(function(id){
+      var s = state[id];
+      var isOn = on(s);
+      var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
+        ? Math.round(s.attributes.brightness/255*100) : null;
+      stormPreState[id] = { on: isOn, pct: pct };
+    });
+    stormActive = true;
+    stormPhaseOn = false;
+    clearInterval(stormTimer);
+    stormTimer = setInterval(stormTick, stormIntervalMs());
+  }
+  function stopStorm(){
+    if(!stormActive) return;
+    stormActive = false;
+    clearInterval(stormTimer);
+    stormTimer = null;
+    var pre = stormPreState;
+    stormPreState = null;
+    if(!pre) return;
+    // group lights by target brightness so restoring is a handful of calls,
+    // not one per light
+    var byPct = {}, onNoBriIds = [], offIds = [];
+    Object.keys(pre).forEach(function(id){
+      var p = pre[id];
+      if(!p.on){ offIds.push(id); return; }
+      if(p.pct !== null){ (byPct[p.pct] = byPct[p.pct] || []).push(id); }
+      else { onNoBriIds.push(id); }
+    });
+    var calls = Object.keys(byPct).map(function(pct){
+      return haCall("light", "turn_on", { entity_id: byPct[pct], brightness_pct: parseInt(pct, 10) });
+    });
+    if(onNoBriIds.length) calls.push(haCall("light", "turn_on", { entity_id: onNoBriIds }));
+    if(offIds.length) calls.push(haCall("light", "turn_off", { entity_id: offIds }));
+    Promise.all(calls.map(function(p){ return p.catch(function(){}); })).then(function(){
+      allPlejdLightIds().forEach(function(id){ reconcileLightSoon(id); });
+    });
+  }
+  function wireStormMode(){
+    var toggle = $("stormModeToggle"), rate = $("stormRate"), rateVal = $("stormRateVal");
+    rate.addEventListener("input", function(){
+      rateVal.textContent = rate.value;
+      if(stormActive){ clearInterval(stormTimer); stormTimer = setInterval(stormTick, stormIntervalMs()); }
+    });
+    toggle.addEventListener("change", function(e){
+      if(e.target.checked){
+        startStorm();
+        toast("Storm mode on","ok");
+      } else {
+        stopStorm();
+        toast("Storm mode off — lights restored","ok");
+      }
+    });
+  }
+  wireStormMode();
+  window.addEventListener("beforeunload", function(){ if(stormActive) stopStorm(); });
+
   buildLightingUI();
   wireLighting();
 
@@ -2880,6 +2970,12 @@
   var PAGES = ["car","house","elpris"];
   function showPage(name){
     if(PAGES.indexOf(name)===-1) name="car";
+    if(activePage === "house" && name !== "house" && stormActive){
+      stopStorm();
+      var stormToggle = $("stormModeToggle");
+      if(stormToggle) stormToggle.checked = false;
+      toast("Storm mode off — lights restored","ok");
+    }
     PAGES.forEach(function(p){ $("page-"+p).hidden = name!==p; });
     document.querySelectorAll("#pageSwitch button").forEach(function(b){
       b.classList.toggle("active", b.getAttribute("data-page")===name);
