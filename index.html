@@ -2362,6 +2362,15 @@
   var STORM_SCENE_ON = "scene.stormon";
   var STORM_SCENE_OFF = "scene.stormoff";
   var STORM_RATE_HZ = 3; // fixed - fast enough to read as a strobe, slow enough the mesh keeps up
+  // Devices that aren't in PLEJD_SITES (so they don't show up as a "light"
+  // in the app) but are still members of the stormon/stormoff Plejd scenes
+  // themselves - scene membership was set up directly in the Plejd app and
+  // has nothing to do with this list, so removing something from
+  // PLEJD_SITES doesn't stop the physical scene from still toggling it.
+  // Tracked here purely so the snapshot/restore still covers it; the real
+  // fix is editing the two scenes in the Plejd app to drop it entirely.
+  var STORM_EXTRA_RESTORE_IDS = ["light.vardagsrum_side_lamp"];
+  function stormRestoreIds(){ return allPlejdLightIds().concat(STORM_EXTRA_RESTORE_IDS); }
   var stormActive = false;
   var stormTimer = null;
   var stormPhaseOn = false;
@@ -2380,7 +2389,7 @@
   }
   function snapshotFromCache(){
     var snap = {};
-    allPlejdLightIds().forEach(function(id){
+    stormRestoreIds().forEach(function(id){
       var s = state[id];
       var isOn = on(s);
       var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
@@ -2407,7 +2416,7 @@
       var byId = {};
       all.forEach(function(s){ byId[s.entity_id] = s; });
       var snap = {};
-      allPlejdLightIds().forEach(function(id){
+      stormRestoreIds().forEach(function(id){
         var s = byId[id] || null;
         var isOn = on(s);
         var pct = (isOn && s.attributes && typeof s.attributes.brightness === "number")
@@ -2453,7 +2462,7 @@
     // wrong. Each resend re-asserts the correct final state, so it outlasts
     // stragglers regardless of how long that takes.
     fireRestore().then(function(){
-      allPlejdLightIds().forEach(function(id){ reconcileLightSoon(id); });
+      stormRestoreIds().forEach(function(id){ reconcileLightSoon(id); });
     });
     [1000, 2000, 3500, 5500, 8000, 12000, 16000].forEach(function(delay){ setTimeout(fireRestore, delay); });
   }
