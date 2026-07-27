@@ -2350,14 +2350,23 @@
       if(p.pct !== null){ (byPct[p.pct] = byPct[p.pct] || []).push(id); }
       else { onNoBriIds.push(id); }
     });
-    var calls = Object.keys(byPct).map(function(pct){
-      return haCall("light", "turn_on", { entity_id: byPct[pct], brightness_pct: parseInt(pct, 10) });
-    });
-    if(onNoBriIds.length) calls.push(haCall("light", "turn_on", { entity_id: onNoBriIds }));
-    if(offIds.length) calls.push(haCall("light", "turn_off", { entity_id: offIds }));
-    Promise.all(calls.map(function(p){ return p.catch(function(){}); })).then(function(){
+    function fireRestore(){
+      var calls = Object.keys(byPct).map(function(pct){
+        return haCall("light", "turn_on", { entity_id: byPct[pct], brightness_pct: parseInt(pct, 10) });
+      });
+      if(onNoBriIds.length) calls.push(haCall("light", "turn_on", { entity_id: onNoBriIds }));
+      if(offIds.length) calls.push(haCall("light", "turn_off", { entity_id: offIds }));
+      return Promise.all(calls.map(function(p){ return p.catch(function(){}); }));
+    }
+    // Fire the restore more than once over the next several seconds - the
+    // last flash ticks can still be in flight on the slow Plejd BLE mesh
+    // (documented elsewhere as 1-5s to confirm) when Storm mode stops, and
+    // a straggler landing after a single restore call would leave that
+    // light on the wrong state. Repeating it outlasts any stragglers.
+    fireRestore().then(function(){
       allPlejdLightIds().forEach(function(id){ reconcileLightSoon(id); });
     });
+    [1500, 3500, 7000].forEach(function(delay){ setTimeout(fireRestore, delay); });
   }
   function wireStormMode(){
     var toggle = $("stormModeToggle"), rate = $("stormRate"), rateVal = $("stormRateVal");
