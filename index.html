@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Stormbull">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
     --bg:#040608; --panel:#10151b; --panel2:#0a0e13; --ink:#eef3f7; --muted:#8695a3; --faint:#55636f;
@@ -197,6 +198,10 @@
   .plejd-site-label{font-size:13px;font-weight:700;color:var(--ink);margin:16px 0 4px;padding-bottom:6px;
     border-bottom:1px solid var(--line)}
   .plejd-site-label:first-child{margin-top:0}
+  .plejd-site-label.toggle{cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between}
+  .plejd-site-label.toggle .chev{font-size:10px;transition:transform .2s ease}
+  .plejd-site.collapsed .plejd-site-label.toggle .chev{transform:rotate(-90deg)}
+  .plejd-site.collapsed .plejd-site-body{display:none}
   .plejd-room{margin-bottom:6px}
   .plejd-room-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
     font-weight:650;margin:10px 0 2px;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between}
@@ -239,6 +244,8 @@
   .charge-table tr:last-child td{border-bottom:none}
   .charge-table td.cost{font-weight:750;color:var(--accent)}
   .charge-table td.msg{text-align:left;color:var(--muted);font-weight:500;white-space:normal}
+  .charge-table tfoot td{padding:10px;border-top:1px solid var(--line);border-bottom:none;font-weight:700}
+  .charge-table tfoot td:first-child{text-align:right}
   .charge-note{font-size:11.5px;color:var(--faint);margin-top:10px}
 
   .seat-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
@@ -327,6 +334,9 @@
     border-radius:10px;padding:9px 12px;font-size:13px;font-weight:650;text-decoration:none;
     transition:transform .2s ease,background .2s ease}
   .loc-link:hover{transform:translateY(-2px);background:color-mix(in srgb, var(--accent) 24%, transparent)}
+  .loc-map{width:300px;max-width:100%;height:300px;border-radius:14px;overflow:hidden;margin-top:12px;
+    border:1px solid var(--line);background:var(--panel2)}
+  .loc-map .leaflet-control-attribution{font-size:9px}
 
   .ctl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
   .ctl-row:last-child{border-bottom:none}
@@ -364,6 +374,9 @@
   .light-sched-bri-row .light-sched-bri{flex:1;min-width:0}
   .light-sched-when{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
   .light-sched-when .sel{width:auto;flex:none}
+  .light-sched-existing{margin-top:6px}
+  .light-sched-existing:empty{display:none}
+  .light-sched-existing .vrow{padding:6px 0;font-size:12.5px}
   .light-sched-when input[type=number]{width:70px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
     border-radius:9px;padding:8px 9px;font-size:13.5px;font-family:inherit}
   .light-sched-bri input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:99px;
@@ -399,6 +412,9 @@
   .eq-bars i:nth-child(3){animation-delay:0s;height:65%}
   @keyframes eqBounce{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
   .media-row{display:flex;gap:8px;margin-bottom:14px}
+  .row-2btn{display:flex;gap:8px}
+  .row-2btn .btn{flex:1}
+  .row-2btn .btn.primary{width:auto}
   .tts-row{display:flex;gap:8px;margin-bottom:12px}
   .tts-row input[type=text]{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
     border-radius:9px;padding:8px 10px;font-size:13.5px;font-family:inherit;transition:border-color .2s ease}
@@ -588,6 +604,7 @@
         <div class="loc-age" id="locAge">—</div>
         <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
       </div>
+      <div class="loc-map" id="carMap"></div>
     </div>
 
     <div class="card c-tires">
@@ -740,6 +757,9 @@
           <tbody id="chargeRows">
             <tr><td class="msg" colspan="6">Loading…</td></tr>
           </tbody>
+          <tfoot>
+            <tr><td colspan="5">Total</td><td class="cost" id="chargeTotalCost">--</td></tr>
+          </tfoot>
         </table>
       </div>
       <div class="charge-note">Estimated from battery power &times; Nord Pool SE3 spot price during each charge — excludes grid fees, VAT and charging losses. Logged by the mirror since 7 Jul 2026.</div>
@@ -759,8 +779,6 @@
       <h2><span class="htitle"><span class="hicon">⏰</span>Lighting schedules</span></h2>
       <div class="grp-label">Schedule a light</div>
       <div id="lightSchedRows"></div>
-      <div class="grp-label">Active schedules</div>
-      <div id="schedList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
     </div>
 
     <div class="card c-alarm">
@@ -774,6 +792,7 @@
       <select class="sel" id="alarmSpeaker" style="width:100%;margin-bottom:8px">
         <option value="sonosTv">TV room</option>
         <option value="sonosKitchen">Kitchen</option>
+        <option value="both">Both speakers</option>
       </select>
       <div class="range-row">
         <div class="rr-top"><span class="k">Volume</span><span class="v" id="alarmVolVal">50%</span></div>
@@ -792,7 +811,10 @@
       <div class="time-row" style="margin:12px 0">
         <input type="time" id="alarmTime" value="07:00">
       </div>
-      <button class="btn primary" id="alarmAddBtn" style="margin-bottom:16px">Add alarm</button>
+      <div class="row-2btn" style="margin-bottom:16px">
+        <button class="btn primary" id="alarmAddBtn">Add alarm</button>
+        <button class="btn ghost" id="alarmTestBtn">Test now</button>
+      </div>
       <div class="grp-label">Active alarms</div>
       <div id="alarmList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
     </div>
@@ -1056,6 +1078,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1222,7 +1245,7 @@
         { id: "light.vardagsrum_side_lamp", name: "Side lamp", dimmable: false }
       ]}
     ]},
-    { name: "Cellar", rooms: [
+    { name: "Cellar", collapsible: true, defaultCollapsed: true, rooms: [
       { label: "Badrum", icon: "🛁", lights: [
         { id: "light.badrum_spottar", name: "Spottar" },
         { id: "light.badrum_bastu", name: "Bastu" }
@@ -1340,6 +1363,26 @@
   function num(s){
     if(!s || s.state==="unavailable" || s.state==="unknown") return null;
     var v = parseFloat(s.state); return isNaN(v) ? null : v;
+  }
+
+  // Small 300x300 Leaflet map in the Location card, tiled from OSM (no API
+  // key needed). Created once on the first real fix, then just re-centered/
+  // re-marked on every subsequent poll - re-creating the map each time would
+  // reset the user's zoom/pan.
+  var carMap = null, carMarker = null;
+  function updateCarMap(lat, lon){
+    if(typeof L === "undefined") return;
+    if(!carMap){
+      carMap = L.map("carMap", { attributionControl: true }).setView([lat, lon], 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(carMap);
+      carMarker = L.marker([lat, lon]).addTo(carMap);
+    } else {
+      carMarker.setLatLng([lat, lon]);
+      carMap.panTo([lat, lon]);
+    }
   }
   function on(s){ return !!s && s.state==="on"; }
   function $(id){ return document.getElementById(id); }
@@ -1629,6 +1672,7 @@
       $("locCoords").textContent = lat.toFixed(5)+", "+lon.toFixed(5);
       $("locAge").textContent = state[E.gpsUpdated] ? "GPS "+fmtAge(state[E.gpsUpdated].state) : "";
       $("locLink").href = "https://www.google.com/maps?q="+lat+","+lon;
+      updateCarMap(lat, lon);
     } else {
       $("locState").textContent = "--"; $("locCoords").textContent = "—, —"; $("locAge").textContent = "";
       $("locLink").href = "#";
@@ -2154,12 +2198,24 @@
           '<div class="plejd-room-body" id="'+roomKey+'">'+rowsHtml+'</div>'+
         '</div>';
       }).join("");
+      if(site.collapsible){
+        var siteKey = "plejdSite_"+slug(site.name);
+        return '<div class="plejd-site'+(site.defaultCollapsed?' collapsed':'')+'">'+
+          '<div class="plejd-site-label toggle"><span>'+site.name+'</span><span class="chev">&#9662;</span></div>'+
+          '<div class="plejd-site-body" id="'+siteKey+'">'+roomsInSite+'</div>'+
+        '</div>';
+      }
       return '<div class="plejd-site-label">'+site.name+'</div>'+roomsInSite;
     }).join("");
     $("lightingRooms").innerHTML = roomsHtml;
     document.querySelectorAll(".plejd-room-label").forEach(function(label){
       label.addEventListener("click", function(){
         label.closest(".plejd-room").classList.toggle("collapsed");
+      });
+    });
+    document.querySelectorAll(".plejd-site-label.toggle").forEach(function(label){
+      label.addEventListener("click", function(){
+        label.closest(".plejd-site").classList.toggle("collapsed");
       });
     });
 
@@ -2262,18 +2318,35 @@
       headers:{ "X-Api-Key": c.controlKey }
     }).then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json().catch(function(){return null;}); });
   }
+  // A schedule's automation id is "house_schedule_<entity-slug>_<on|off>_...";
+  // matching on prefix + immediately-following "on_"/"off_" (rather than a
+  // bare startsWith) avoids one light's slug being a string-prefix of
+  // another's (e.g. a future "kok_spottar_2") and stealing its schedules.
+  function scheduleMatchesLight(automationId, entityId){
+    var prefix = "house_schedule_"+entityId.replace(/[^a-z0-9]/gi,"_").toLowerCase()+"_";
+    if(automationId.indexOf(prefix) !== 0) return false;
+    var rest = automationId.slice(prefix.length);
+    return rest.indexOf("on_")===0 || rest.indexOf("off_")===0;
+  }
+  function renderScheduleList(container, schedules){
+    if(!schedules.length){ container.innerHTML = ""; return; }
+    container.innerHTML = schedules.map(function(a){
+      var name = (a.attributes.friendly_name||"").slice(SCHEDULE_PREFIX.length);
+      return '<div class="vrow"><span class="k">'+name+'</span>'+
+        '<span class="v"><button type="button" class="btn ghost small" data-del-sched="'+a.attributes.id+'">Delete</button></span></div>';
+    }).join("");
+  }
   function loadSchedules(){
-    var list = $("schedList");
     haGetAllStates().then(function(all){
       var schedules = all.filter(function(e){
         return e.entity_id.indexOf("automation.")===0 && (e.attributes.friendly_name||"").indexOf(SCHEDULE_PREFIX)===0;
       });
-      if(!schedules.length){ list.innerHTML = '<div class="vrow"><span class="k">No schedules yet</span></div>'; return; }
-      list.innerHTML = schedules.map(function(a){
-        var name = (a.attributes.friendly_name||"").slice(SCHEDULE_PREFIX.length);
-        return '<div class="vrow"><span class="k">'+name+'</span>'+
-          '<span class="v"><button type="button" class="btn ghost small" data-del-sched="'+a.attributes.id+'">Delete</button></span></div>';
-      }).join("");
+      allPlejdLightIds().forEach(function(entityId){
+        var container = $(lightSchedKey(entityId)+"Existing");
+        if(!container) return;
+        var mine = schedules.filter(function(a){ return scheduleMatchesLight(a.attributes.id||"", entityId); });
+        renderScheduleList(container, mine);
+      });
       document.querySelectorAll("[data-del-sched]").forEach(function(btn){
         btn.addEventListener("click", function(){
           withBusy(haConfigDelete("config/automation/config/"+btn.getAttribute("data-del-sched")))
@@ -2281,7 +2354,12 @@
             .catch(function(err){ toast("Couldn't remove schedule: "+err.message,"err"); });
         });
       });
-    }).catch(function(){ list.innerHTML = '<div class="vrow"><span class="k">Couldn\'t load schedules</span></div>'; });
+    }).catch(function(){
+      allPlejdLightIds().forEach(function(entityId){
+        var container = $(lightSchedKey(entityId)+"Existing");
+        if(container) container.innerHTML = '<div class="vrow"><span class="k">Couldn\'t load schedules</span></div>';
+      });
+    });
   }
   // Every Plejd light gets its own row: an On/Off action toggle, a
   // brightness slider (only meaningful for "On", hidden otherwise/for
@@ -2316,6 +2394,7 @@
               '<input type="number" id="'+key+'Off" value="0" title="Minutes before(-)/after(+)" style="display:none">'+
               '<button type="button" class="btn ghost small" data-add-light-sched="'+l.id+'">Add</button>'+
             '</div>'+
+            '<div class="light-sched-existing" id="'+key+'Existing"></div>'+
           '</div>';
         }).join("");
         return '<div class="light-sched-group"><div class="plejd-room-label"><span><span class="hicon">'+(room.icon||"💡")+'</span>'+room.label+'</span></div>'+roomRows+'</div>';
@@ -2410,14 +2489,33 @@
   // via the same TTS provider/service the Sonos cards' own "Play" button uses.
   var ALARM_PREFIX = "House alarm: ";
   var ALARM_DAY_LABELS = {mon:"Mon",tue:"Tue",wed:"Wed",thu:"Thu",fri:"Fri",sat:"Sat",sun:"Sun"};
+  // "both" isn't a real HA entity - it fans out to both Sonos speakers at
+  // once (media_player/tts services both accept a list of entity_ids).
+  function alarmSpeakerEntity(speakerKey){
+    return speakerKey === "both" ? [EH.sonosTv, EH.sonosKitchen] : EH[speakerKey];
+  }
   function wireAlarm(){
     $("alarmVol").addEventListener("input", function(e){ $("alarmVolVal").textContent = e.target.value+"%"; });
+    $("alarmTestBtn").addEventListener("click", function(){
+      var msg = $("alarmText").value.trim();
+      if(!msg){ toast("Type a message first","err"); return; }
+      var lang = $("alarmLang").value;
+      var speakerKey = $("alarmSpeaker").value;
+      var entity = alarmSpeakerEntity(speakerKey);
+      var vol = parseInt($("alarmVol").value, 10);
+      withBusy(haCall("media_player", "volume_set", { entity_id: entity, volume_level: vol/100 })
+        .then(function(){
+          return haCall("tts", "speak", { entity_id: TTS_ENTITY, media_player_entity_id: entity, message: msg, language: lang });
+        }))
+        .then(function(){ toast("Playing test alarm now","ok"); })
+        .catch(function(err){ toast("Couldn't play test alarm: "+err.message,"err"); });
+    });
     $("alarmAddBtn").addEventListener("click", function(){
       var msg = $("alarmText").value.trim();
       if(!msg){ toast("Type a message first","err"); return; }
       var lang = $("alarmLang").value;
       var speakerKey = $("alarmSpeaker").value;
-      var entity = EH[speakerKey];
+      var entity = alarmSpeakerEntity(speakerKey);
       var speakerLabel = $("alarmSpeaker").options[$("alarmSpeaker").selectedIndex].textContent;
       var vol = parseInt($("alarmVol").value, 10);
       var time = $("alarmTime").value;
@@ -2886,6 +2984,7 @@
     var body = $("chargeRows");
     if(!cfg().controlKey){
       body.innerHTML = chargeMsgRow("Add the control server API key in settings (gear icon) to see charge history.");
+      $("chargeTotalCost").textContent = "--";
       return;
     }
     controlGet("/lastcharge").then(function(j){
@@ -2896,7 +2995,7 @@
       chargesCache = j.charges || [];
       updateKmPrice(null);
       var list = (j.charges||[]).slice().reverse(); // newest first
-      if(!list.length){ body.innerHTML = chargeMsgRow("No charges logged yet."); return; }
+      if(!list.length){ body.innerHTML = chargeMsgRow("No charges logged yet."); $("chargeTotalCost").textContent = "--"; return; }
       body.innerHTML = list.map(function(c){
         var durMs = (c.startedAt && c.endedAt) ? c.endedAt - c.startedAt : null;
         var hours = durMs ? durMs/3600000 : null;
@@ -2911,8 +3010,11 @@
           '<td class="cost">'+(c.free ? "0 kr" : (c.cost!=null ? c.cost.toFixed(2)+" kr" : "--"))+"</td>"+
         "</tr>";
       }).join("");
+      var totalCost = list.reduce(function(sum,c){ return sum + (c.free ? 0 : (c.cost||0)); }, 0);
+      $("chargeTotalCost").textContent = totalCost.toFixed(2)+" kr";
     }).catch(function(e){
       body.innerHTML = chargeMsgRow("Couldn't load charge history: "+e.message, true);
+      $("chargeTotalCost").textContent = "--";
     });
   }
 
