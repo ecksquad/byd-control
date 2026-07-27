@@ -3241,10 +3241,30 @@
   // recording is what actually reads as a moo). "Cow Moo" by Mike Koenig,
   // soundbible.com, CC BY 3.0 - hosted alongside index.html rather than
   // linked from soundbible.com directly since Sonos fetches the URL itself
-  // and shouldn't depend on a third-party site staying up.
+  // and shouldn't depend on a third-party site staying up. A thunder crack
+  // follows immediately after - "Thunder 02" by Mark DiAngelo, same site,
+  // same CC BY 3.0 license - completing the Stormbull pun (storm + bull).
   var MOO_URL = "https://ecksquad.github.io/byd-control/moo.mp3";
+  var THUNDER_URL = "https://ecksquad.github.io/byd-control/thunder.mp3";
+  var MOO_DURATION_MS = 3700; // moo.mp3 runs ~3.64s - queue the thunder right as it ends
+  var THUNDER_DURATION_MS = 5100; // thunder.mp3 runs ~4.99s - restore volume once it's done
+  function playThunder(volume){
+    var speakers = [EH.sonosTv, EH.sonosKitchen];
+    haCall("media_player", "play_media", {
+      entity_id: speakers,
+      media_content_id: THUNDER_URL,
+      media_content_type: "music"
+    }).catch(function(){});
+  }
   function playMoo(volume){
     var speakers = [EH.sonosTv, EH.sonosKitchen];
+    // Snapshot whatever each speaker was actually at beforehand (not the
+    // fixed SONOS_DEFAULT_VOL used for alarms) so this one-off gag puts
+    // volume back exactly where the house found it, not some house default.
+    var priorVolumes = speakers.map(function(id){
+      var mp = state[id];
+      return (mp && mp.attributes && typeof mp.attributes.volume_level === "number") ? mp.attributes.volume_level : null;
+    });
     haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
       .then(function(){
         return haCall("media_player", "play_media", {
@@ -3252,6 +3272,15 @@
           media_content_id: MOO_URL,
           media_content_type: "music"
         });
+      })
+      .then(function(){
+        setTimeout(function(){ playThunder(volume); }, MOO_DURATION_MS);
+        setTimeout(function(){
+          speakers.forEach(function(id, i){
+            if(priorVolumes[i] === null) return;
+            haCall("media_player", "volume_set", { entity_id: id, volume_level: priorVolumes[i] }).catch(function(){});
+          });
+        }, MOO_DURATION_MS + THUNDER_DURATION_MS);
       })
       .catch(function(){});
   }
