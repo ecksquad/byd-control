@@ -2310,23 +2310,24 @@
     });
   }
 
-  // Storm mode: flash every Plejd light on/off in unison, then put each one
-  // back exactly how it was found. One HA service call per tick with
-  // entity_id as an array (rather than one call per light) keeps request
-  // *volume* sane, but the first version still fired a new tick on a fixed
-  // setInterval regardless of whether the previous call had come back yet.
-  // The Plejd BLE mesh can take 1-5s to actually apply a command (documented
-  // above at reconcileLightSoon) - at any requested rate faster than that,
-  // ticks piled up faster than the mesh could drain them, so every speed
-  // setting converged on whatever the mesh's real ceiling is (~1/sec) and a
-  // long backlog of already-sent commands kept flashing lights for a good
-  // while after Storm mode was switched off, because clearing the ticker
-  // only stops *new* commands from being queued, not ones already in flight.
-  // Self-scheduling instead of a fixed interval - only ever one command in
-  // flight, next one scheduled off the previous one's actual response time -
-  // bounds that backlog to at most a single straggler, so speed settles to
-  // whatever's really achievable instead of masking a growing queue, and
-  // stop actually takes effect almost immediately.
+  // Storm mode: flash the whole house on/off in unison, then put every
+  // light back exactly how it was found. Flashing itself alternates two
+  // Plejd scenes (scene.stormon / scene.stormoff, created in the Plejd app -
+  // see the disable-integration/create-scene/re-enable dance worked out
+  // earlier) rather than calling light.turn_on/off on every individual
+  // light. A scene trigger is a single mesh-wide broadcast that every
+  // device reacts to from its own locally-stored scene data, instead of ~26
+  // sequential per-device BLE writes - the old light.turn_on/off approach
+  // could only ever go as fast as that sequential dispatch (documented
+  // as 1-5s per command at reconcileLightSoon above), which is why every
+  // requested rate converged on the same real ceiling and a backlog of
+  // already-sent commands kept flashing lights long after Storm mode was
+  // switched off. Restoring on stop still can't use a scene (scenes are
+  // fixed presets, not "whatever mixed on/off/brightness state each light
+  // happened to be in"), so that part still snapshots and replays each
+  // light individually, unchanged.
+  var STORM_SCENE_ON = "scene.stormon";
+  var STORM_SCENE_OFF = "scene.stormoff";
   var stormActive = false;
   var stormTimer = null;
   var stormPhaseOn = false;
@@ -2335,14 +2336,8 @@
   function stormLoopStep(){
     if(!stormActive) return;
     stormPhaseOn = !stormPhaseOn;
-    var ids = allPlejdLightIds();
     var startedAt = Date.now();
-    // Plain turn_on (no brightness_pct) - a bare "on" is a lighter Plejd
-    // command than "set to an exact level", and at flash speed the eye
-    // only reads lit-vs-not anyway, not the dim level.
-    var call = stormPhaseOn
-      ? haCall("light", "turn_on", { entity_id: ids })
-      : haCall("light", "turn_off", { entity_id: ids });
+    var call = haCall("scene", "turn_on", { entity_id: stormPhaseOn ? STORM_SCENE_ON : STORM_SCENE_OFF });
     call.catch(function(){}).then(function(){
       if(!stormActive) return;
       var wait = Math.max(0, stormIntervalMs() - (Date.now() - startedAt));
