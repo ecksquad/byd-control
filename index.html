@@ -783,6 +783,7 @@
           <div class="rr-top"><span class="k">Flashes per second</span><span class="v" id="stormRateVal">7</span></div>
           <input type="range" id="stormRate" min="1" max="15" step="1" value="7">
         </div>
+        <div style="margin-top:-4px;font-size:12px;color:var(--muted)">This is a ceiling, not a guarantee — the Plejd lights themselves cap how fast they can actually keep up</div>
       </div>
       <div id="lightingRooms"></div>
     </div>
@@ -2302,22 +2303,39 @@
 
   // Storm mode: flash every Plejd light on/off in unison, then put each one
   // back exactly how it was found. One HA service call per tick with
-  // entity_id as an array (rather than one call per light) - at up to 15
-  // flashes/sec that's the difference between ~15 requests/sec and ~400,
-  // and the Plejd BLE mesh already struggles to keep up with the former.
+  // entity_id as an array (rather than one call per light) keeps request
+  // *volume* sane, but the first version still fired a new tick on a fixed
+  // setInterval regardless of whether the previous call had come back yet.
+  // The Plejd BLE mesh can take 1-5s to actually apply a command (documented
+  // above at reconcileLightSoon) - at any requested rate faster than that,
+  // ticks piled up faster than the mesh could drain them, so every speed
+  // setting converged on whatever the mesh's real ceiling is (~1/sec) and a
+  // long backlog of already-sent commands kept flashing lights for a good
+  // while after Storm mode was switched off, because clearing the ticker
+  // only stops *new* commands from being queued, not ones already in flight.
+  // Self-scheduling instead of a fixed interval - only ever one command in
+  // flight, next one scheduled off the previous one's actual response time -
+  // bounds that backlog to at most a single straggler, so speed settles to
+  // whatever's really achievable instead of masking a growing queue, and
+  // stop actually takes effect almost immediately.
   var stormActive = false;
   var stormTimer = null;
   var stormPhaseOn = false;
   var stormPreState = null;
   function stormIntervalMs(){ return Math.round(1000 / (parseInt($("stormRate").value, 10) || 7)); }
-  function stormTick(){
+  function stormLoopStep(){
+    if(!stormActive) return;
     stormPhaseOn = !stormPhaseOn;
     var ids = allPlejdLightIds();
-    if(stormPhaseOn){
-      haCall("light", "turn_on", { entity_id: ids, brightness_pct: 100 }).catch(function(){});
-    } else {
-      haCall("light", "turn_off", { entity_id: ids }).catch(function(){});
-    }
+    var startedAt = Date.now();
+    var call = stormPhaseOn
+      ? haCall("light", "turn_on", { entity_id: ids, brightness_pct: 100 })
+      : haCall("light", "turn_off", { entity_id: ids });
+    call.catch(function(){}).then(function(){
+      if(!stormActive) return;
+      var wait = Math.max(0, stormIntervalMs() - (Date.now() - startedAt));
+      stormTimer = setTimeout(stormLoopStep, wait);
+    });
   }
   function startStorm(){
     stormPreState = {};
@@ -2330,13 +2348,13 @@
     });
     stormActive = true;
     stormPhaseOn = false;
-    clearInterval(stormTimer);
-    stormTimer = setInterval(stormTick, stormIntervalMs());
+    clearTimeout(stormTimer);
+    stormLoopStep();
   }
   function stopStorm(){
     if(!stormActive) return;
     stormActive = false;
-    clearInterval(stormTimer);
+    clearTimeout(stormTimer);
     stormTimer = null;
     var pre = stormPreState;
     stormPreState = null;
@@ -2372,7 +2390,9 @@
     var toggle = $("stormModeToggle"), rate = $("stormRate"), rateVal = $("stormRateVal");
     rate.addEventListener("input", function(){
       rateVal.textContent = rate.value;
-      if(stormActive){ clearInterval(stormTimer); stormTimer = setInterval(stormTick, stormIntervalMs()); }
+      // stormLoopStep() re-reads stormIntervalMs() each time it schedules the
+      // next tick, so a rate change while running just takes effect on the
+      // next tick - nothing to restart here.
     });
     toggle.addEventListener("change", function(e){
       if(e.target.checked){
