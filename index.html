@@ -228,6 +228,7 @@
   .plejd-light-pct{flex:0 0 34px;text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
   .storm-mode-row{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
   .storm-mode-row .range-row{border-bottom:none;padding-bottom:0}
+  .btn.siren-active{background:var(--bad-soft);color:var(--bad)}
 
   /* Daikin circular dial - visual centerpiece, mirrors the style of HA's
      own climate card rather than a bare +/- stepper */
@@ -795,6 +796,14 @@
         <div class="ctl-row">
           <div class="ctl-label"><div class="t">⚡ Storm mode</div><div class="d">Flashes every light in the house, then restores them</div></div>
           <label class="switch" id="stormModeWrap"><input type="checkbox" id="stormModeToggle"><span class="track"></span><span class="knob"></span></label>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl-label"><div class="t">🚨 Air raid siren</div><div class="d">Loops a siren on both speakers and triggers storm mode</div></div>
+          <button class="btn ghost small" id="sirenBtn">Sound siren</button>
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Siren volume</span><span class="v" id="sirenVolVal">50%</span></div>
+          <input type="range" id="sirenVol" min="0" max="100" step="1" value="50">
         </div>
       </div>
       <div id="lightingRooms"></div>
@@ -2475,12 +2484,97 @@
         toast("Storm mode on","ok");
       } else {
         stopStorm();
+        if(sirenActive) stopSiren();
         toast("Storm mode off — lights restored","ok");
       }
     });
   }
   wireStormMode();
-  window.addEventListener("beforeunload", function(){ if(stormActive) stopStorm(); });
+
+  // Air raid siren: loops siren.mp3 on both Sonos speakers at the chosen
+  // volume for as long as it's active, riding along with the same
+  // Storm mode light-flash (startStorm/stopStorm) the toggle above uses -
+  // pressing this is meant to feel like pulling the alarm, not just
+  // playing a sound. Volume is restored per-speaker on stop, same pattern
+  // as playMoo/playThunder further down.
+  var SIREN_URL = "https://ecksquad.github.io/byd-control/siren.mp3";
+  var SIREN_DURATION_MS = 5400; // siren.mp3 runs ~5.4s - re-trigger on this cadence while active
+  var sirenActive = false;
+  var sirenTimer = null;
+  var sirenPriorVolumes = null;
+  function sirenLoopStep(){
+    if(!sirenActive) return;
+    haCall("media_player", "play_media", {
+      entity_id: [EH.sonosTv, EH.sonosKitchen],
+      media_content_id: SIREN_URL,
+      media_content_type: "music"
+    }).catch(function(){});
+    sirenTimer = setTimeout(sirenLoopStep, SIREN_DURATION_MS);
+  }
+  function syncSirenBtnUI(){
+    var btn = $("sirenBtn");
+    if(!btn) return;
+    btn.textContent = sirenActive ? "Stop siren" : "Sound siren";
+    btn.classList.toggle("siren-active", sirenActive);
+  }
+  function startSiren(volume){
+    if(sirenActive) return;
+    sirenActive = true;
+    var speakers = [EH.sonosTv, EH.sonosKitchen];
+    sirenPriorVolumes = speakers.map(function(id){
+      var mp = state[id];
+      return (mp && mp.attributes && typeof mp.attributes.volume_level === "number") ? mp.attributes.volume_level : null;
+    });
+    haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
+      .then(sirenLoopStep).catch(sirenLoopStep);
+    if(!stormActive){
+      startStorm();
+      var toggle = $("stormModeToggle");
+      if(toggle) toggle.checked = true;
+    }
+    syncSirenBtnUI();
+  }
+  function stopSiren(){
+    if(!sirenActive) return;
+    sirenActive = false;
+    clearTimeout(sirenTimer);
+    sirenTimer = null;
+    var speakers = [EH.sonosTv, EH.sonosKitchen];
+    if(sirenPriorVolumes){
+      speakers.forEach(function(id, i){
+        if(sirenPriorVolumes[i] === null) return;
+        haCall("media_player", "volume_set", { entity_id: id, volume_level: sirenPriorVolumes[i] }).catch(function(){});
+      });
+    }
+    sirenPriorVolumes = null;
+    if(stormActive){
+      stopStorm();
+      var toggle = $("stormModeToggle");
+      if(toggle) toggle.checked = false;
+    }
+    syncSirenBtnUI();
+  }
+  function wireSirenButton(){
+    var btn = $("sirenBtn");
+    var vol = $("sirenVol");
+    var volVal = $("sirenVolVal");
+    if(!btn || !vol) return;
+    vol.addEventListener("input", function(){ volVal.textContent = vol.value + "%"; });
+    btn.addEventListener("click", function(){
+      if(sirenActive){
+        stopSiren();
+        toast("Siren stopped","ok");
+      } else {
+        startSiren(parseInt(vol.value, 10) / 100);
+        toast("Siren sounding","ok");
+      }
+    });
+  }
+  wireSirenButton();
+  window.addEventListener("beforeunload", function(){
+    if(sirenActive) stopSiren();
+    else if(stormActive) stopStorm();
+  });
 
   buildLightingUI();
   wireLighting();
