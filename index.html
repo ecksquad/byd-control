@@ -1101,6 +1101,14 @@
           <div class="rr-top"><span class="k">Siren volume</span><span class="v" id="sirenVolVal">50%</span></div>
           <input type="range" id="sirenVol" min="0" max="100" step="1" value="50">
         </div>
+        <div class="ctl-row">
+          <div class="ctl-label"><div class="t">🤫 Whisper</div><div class="d">A soft "hello" on both speakers at 10% volume</div></div>
+          <button class="btn ghost small" id="whisperBtn">Whisper</button>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl-label"><div class="t">🚪 Door knock</div><div class="d">A knock on both speakers at 25% volume</div></div>
+          <button class="btn ghost small" id="doorKnockBtn">Door knock</button>
+        </div>
       </div>
     </div>
   </div>
@@ -3529,22 +3537,22 @@
 
   // Secret page: 3 taps on the "Connected" pill within 1.5s (only while it's
   // actually green/online) reveals a hidden Fun stuff page - Storm mode and
-  // the air raid siren live there now instead of the House page. A soft
-  // whisper plays at 10% volume on both speakers as the unlock cue, then
-  // restores each speaker's prior volume same as playMoo/playThunder above.
-  var WHISPER_URL = "https://ecksquad.github.io/byd-control/whisper.mp3";
-  var WHISPER_DURATION_MS = 2500; // whisper.mp3 runs ~2.4s - restore volume once it's done
-  function playWhisper(volume){
+  // the air raid siren live there now instead of the House page, alongside
+  // the two one-shot sound buttons below. Every clip here plays on BOTH
+  // speakers, saving and restoring each one's own prior volume afterward -
+  // same pattern as playMoo/playThunder above, just factored out since it's
+  // now used by three different clips instead of one.
+  function playSonosClip(url, volume, durationMs){
     var speakers = [EH.sonosTv, EH.sonosKitchen];
     var priorVolumes = speakers.map(function(id){
       var mp = state[id];
       return (mp && mp.attributes && typeof mp.attributes.volume_level === "number") ? mp.attributes.volume_level : null;
     });
-    haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
+    return haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
       .then(function(){
         return haCall("media_player", "play_media", {
           entity_id: speakers,
-          media_content_id: WHISPER_URL,
+          media_content_id: url,
           media_content_type: "music"
         });
       })
@@ -3554,10 +3562,16 @@
             if(priorVolumes[i] === null) return;
             haCall("media_player", "volume_set", { entity_id: id, volume_level: priorVolumes[i] }).catch(function(){});
           });
-        }, WHISPER_DURATION_MS);
+        }, durationMs);
       })
       .catch(function(){});
   }
+  var WHISPER_URL = "https://ecksquad.github.io/byd-control/whisper.mp3";
+  var WHISPER_DURATION_MS = 2500; // whisper.mp3 runs ~2.4s - restore volume once it's done
+  function playWhisper(volume){ return playSonosClip(WHISPER_URL, volume, WHISPER_DURATION_MS); }
+  var DOORKNOCK_URL = "https://ecksquad.github.io/byd-control/doorknock.mp3";
+  var DOORKNOCK_DURATION_MS = 1200; // doorknock.mp3 runs under 1s - restore volume once it's done
+  function playDoorKnock(volume){ return playSonosClip(DOORKNOCK_URL, volume, DOORKNOCK_DURATION_MS); }
   (function wireSecretPage(){
     var pill = $("onlinePill");
     if(!pill) return;
@@ -3574,6 +3588,10 @@
         showPage("secret");
       }
     });
+    var whisperBtn = $("whisperBtn");
+    if(whisperBtn) whisperBtn.addEventListener("click", function(){ playWhisper(0.1); toast("Whisper played","ok"); });
+    var doorKnockBtn = $("doorKnockBtn");
+    if(doorKnockBtn) doorKnockBtn.addEventListener("click", function(){ playDoorKnock(0.25); toast("Door knock played","ok"); });
   })();
 
   $("refreshBtn").addEventListener("click", function(){
