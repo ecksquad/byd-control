@@ -1102,12 +1102,20 @@
           <input type="range" id="sirenVol" min="0" max="100" step="1" value="50">
         </div>
         <div class="ctl-row">
-          <div class="ctl-label"><div class="t">🤫 Whisper</div><div class="d">A soft "hello" on both speakers at 10% volume</div></div>
+          <div class="ctl-label"><div class="t">🤫 Whisper</div><div class="d">A soft "hello" on both speakers</div></div>
           <button class="btn ghost small" id="whisperBtn">Whisper</button>
         </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Whisper volume</span><span class="v" id="whisperVolVal">10%</span></div>
+          <input type="range" id="whisperVol" min="0" max="100" step="1" value="10">
+        </div>
         <div class="ctl-row">
-          <div class="ctl-label"><div class="t">🚪 Door knock</div><div class="d">A knock on both speakers at 25% volume</div></div>
+          <div class="ctl-label"><div class="t">🚪 Door knock</div><div class="d">A knock on both speakers</div></div>
           <button class="btn ghost small" id="doorKnockBtn">Door knock</button>
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Door knock volume</span><span class="v" id="doorKnockVolVal">25%</span></div>
+          <input type="range" id="doorKnockVol" min="0" max="100" step="1" value="25">
         </div>
       </div>
     </div>
@@ -3584,14 +3592,24 @@
       taps.push(now);
       if(taps.length >= 3){
         taps = [];
-        playWhisper(0.1);
+        playWhisper(sliderVol("whisperVol", 0.1));
         showPage("secret");
       }
     });
+    function sliderVol(id, fallback){
+      var el = $(id);
+      return el ? parseInt(el.value, 10)/100 : fallback;
+    }
+    function wireVolSlider(volId, volValId){
+      var vol = $(volId), volVal = $(volValId);
+      if(vol && volVal) vol.addEventListener("input", function(){ volVal.textContent = vol.value + "%"; });
+    }
+    wireVolSlider("whisperVol", "whisperVolVal");
+    wireVolSlider("doorKnockVol", "doorKnockVolVal");
     var whisperBtn = $("whisperBtn");
-    if(whisperBtn) whisperBtn.addEventListener("click", function(){ playWhisper(0.1); toast("Whisper played","ok"); });
+    if(whisperBtn) whisperBtn.addEventListener("click", function(){ playWhisper(sliderVol("whisperVol", 0.1)); toast("Whisper played","ok"); });
     var doorKnockBtn = $("doorKnockBtn");
-    if(doorKnockBtn) doorKnockBtn.addEventListener("click", function(){ playDoorKnock(0.25); toast("Door knock played","ok"); });
+    if(doorKnockBtn) doorKnockBtn.addEventListener("click", function(){ playDoorKnock(sliderVol("doorKnockVol", 0.25)); toast("Door knock played","ok"); });
   })();
 
   $("refreshBtn").addEventListener("click", function(){
