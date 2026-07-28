@@ -193,11 +193,12 @@
   .c-lighting{grid-column:span 12}
   .c-schedule{grid-column:span 12}
   .c-alarm{grid-column:span 12}
+  .c-mirror-cam{grid-column:span 12}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
     .c-windows,.c-comfort,.c-history,
     .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower,
-    .c-lighting,.c-schedule,.c-alarm{grid-column:span 12}
+    .c-lighting,.c-schedule,.c-alarm,.c-mirror-cam{grid-column:span 12}
   }
 
   /* Plejd lighting section */
@@ -400,6 +401,13 @@
   .alarm-days{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0 12px}
   .alarm-days label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
   .alarm-days input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+
+  /* Mini Mirror live feed card - video fills the card width, height simply
+     follows the stream's own intrinsic aspect ratio (no crop/fixed box) */
+  .mirror-cam-wrap{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000}
+  .mirror-cam-wrap video{width:100%;height:auto;display:block}
+  .mirror-cam-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;
+    font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
   /* house page primitives */
   .disabled-group.is-off{opacity:.4;pointer-events:none}
@@ -851,6 +859,14 @@
       </div>
       <div class="grp-label">Active alarms</div>
       <div id="alarmList" class="vitals-list"><div class="vrow"><span class="k">Loading…</span></div></div>
+    </div>
+
+    <div class="card c-mirror-cam">
+      <h2><span class="htitle"><span class="hicon">🪞</span>Mini Mirror — live feed</span></h2>
+      <div class="mirror-cam-wrap">
+        <video id="mirrorCamVideo" autoplay playsinline muted></video>
+        <div class="mirror-cam-status" id="mirrorCamStatus">—</div>
+      </div>
     </div>
 
     <div class="card c-sonos-tv">
@@ -2574,6 +2590,7 @@
   window.addEventListener("beforeunload", function(){
     if(sirenActive) stopSiren();
     else if(stormActive) stopStorm();
+    disconnectMirrorCam();
   });
 
   buildLightingUI();
@@ -3176,6 +3193,88 @@
   wireSwitch("wifiGuest5", EH.wifiGuest5, "Guest 5G WiFi");
   wireSwitch("wifiGuest6", EH.wifiGuest6, "Guest 6G WiFi");
 
+  // ---- Mini Mirror live feed (House page) ----
+  // WebRTC viewer matching reflekt's own "?cam=1&id=" mode - same relay
+  // Worker, same signaling contract (video only, no audio yet). Only
+  // connects while the House page is actually open, same as Storm mode
+  // above, so it doesn't sit streaming in the background costing data.
+  var MIRROR_CAM_ID = "main";
+  var MIRROR_CAM_RELAY = "https://still-wave-afbc.ecksquad.workers.dev";
+  var MIRROR_RTC_ICE = [
+    {urls:"stun:stun.l.google.com:19302"},
+    {urls:["turn:openrelay.metered.ca:80","turn:openrelay.metered.ca:443","turn:openrelay.metered.ca:443?transport=tcp"],username:"openrelayproject",credential:"openrelayproject"}
+  ];
+  function mirrorCamUrl(p){ return MIRROR_CAM_RELAY+(MIRROR_CAM_RELAY.indexOf("?")>=0?"&":"?")+p; }
+  function mirrorCamWaitIce(pc, ms){
+    return new Promise(function(res){
+      if(pc.iceGatheringState==="complete") return res();
+      var t=setTimeout(function(){ pc.removeEventListener("icegatheringstatechange",h); res(); }, ms||4000);
+      function h(){ if(pc.iceGatheringState==="complete"){ clearTimeout(t); pc.removeEventListener("icegatheringstatechange",h); res(); } }
+      pc.addEventListener("icegatheringstatechange",h);
+    });
+  }
+  var mCamPc=null, mCamIceT=null, mCamAnsT=null;
+  function mCamStatus(t){ var s=$("mirrorCamStatus"); if(s) s.textContent=t; }
+  function connectMirrorCam(){
+    if(mCamPc) return;
+    mCamStatus("Connecting…");
+    fetch(mirrorCamUrl("rtc=reset&id="+encodeURIComponent(MIRROR_CAM_ID)),{method:"POST"}).catch(function(){}).then(function(){
+      mCamPc=new RTCPeerConnection({iceServers:MIRROR_RTC_ICE});
+      mCamPc.addTransceiver("video",{direction:"recvonly"});
+      mCamPc.ontrack=function(ev){
+        var v=$("mirrorCamVideo");
+        if(v && v.srcObject!==ev.streams[0]){
+          v.srcObject=ev.streams[0]; v.play().catch(function(){});
+          v.onloadedmetadata=function(){ mCamStatus("Live"); };
+        }
+      };
+      mCamPc.onconnectionstatechange=function(){
+        if(!mCamPc) return;
+        var v=$("mirrorCamVideo");
+        if(mCamPc.connectionState==="connected" && !(v&&v.srcObject)) mCamStatus("Connected, waiting for video…");
+        else if(mCamPc.connectionState==="failed"||mCamPc.connectionState==="disconnected") mCamStatus("Connection lost");
+      };
+      return mCamPc.createOffer().then(function(offer){ return mCamPc.setLocalDescription(offer); })
+        .then(function(){ mCamStatus("Finding a route…"); return mirrorCamWaitIce(mCamPc,4000); });
+    }).then(function(){
+      if(!mCamPc) return;
+      return fetch(mirrorCamUrl("rtc=sdp&role=offer&id="+encodeURIComponent(MIRROR_CAM_ID)),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"offer",sdp:mCamPc.localDescription.sdp,_ts:Date.now()})});
+    }).then(function(){
+      if(!mCamPc) return;
+      mCamStatus("Waiting for mirror…");
+      var answered=false;
+      setTimeout(function(){ if(!answered) mCamStatus("Still waiting — check Remote camera view is On on the mirror"); },15000);
+      clearInterval(mCamAnsT);
+      mCamAnsT=setInterval(function(){
+        if(answered || !mCamPc) return;
+        fetch(mirrorCamUrl("rtc=sdp&role=answer&id="+encodeURIComponent(MIRROR_CAM_ID))).then(function(r){return r.json();}).then(function(ans){
+          if(!ans||!ans.sdp||!mCamPc) return;
+          answered=true; clearInterval(mCamAnsT);
+          mCamPc.setRemoteDescription({type:"answer",sdp:ans.sdp}).then(function(){
+            var since=0;
+            clearInterval(mCamIceT);
+            mCamIceT=setInterval(function(){
+              if(!mCamPc) return;
+              fetch(mirrorCamUrl("rtc=ice&role=mirror&id="+encodeURIComponent(MIRROR_CAM_ID)+"&since="+since)).then(function(r){return r.json();}).then(function(d){
+                var list=(d&&d.candidates)||[];
+                list.forEach(function(c){ try{ mCamPc.addIceCandidate(c); }catch(e){} });
+                since=(d&&d.total)||since;
+              }).catch(function(){});
+            },2000);
+          });
+        }).catch(function(){});
+      },2000);
+    }).catch(function(){ mCamStatus("Couldn't connect"); });
+  }
+  function disconnectMirrorCam(){
+    clearInterval(mCamIceT); mCamIceT=null;
+    clearInterval(mCamAnsT); mCamAnsT=null;
+    if(mCamPc){ try{ mCamPc.close(); }catch(e){} mCamPc=null; }
+    var v=$("mirrorCamVideo");
+    if(v) v.srcObject=null;
+    mCamStatus("—");
+  }
+
   // ---- Car/House/Elpris page switcher ----
   var PAGES = ["car","house","elpris"];
   function showPage(name){
@@ -3186,6 +3285,9 @@
       if(stormToggle) stormToggle.checked = false;
       toast("Storm mode off — lights restored","ok");
     }
+    if(activePage === "house" && name !== "house"){
+      disconnectMirrorCam();
+    }
     PAGES.forEach(function(p){ $("page-"+p).hidden = name!==p; });
     document.querySelectorAll("#pageSwitch button").forEach(function(b){
       b.classList.toggle("active", b.getAttribute("data-page")===name);
@@ -3193,6 +3295,7 @@
     activePage = name;
     try{ localStorage.setItem("carctrl_page", name); }catch(e){}
     render();
+    if(name === "house"){ connectMirrorCam(); }
   }
   document.querySelectorAll("#pageSwitch button").forEach(function(b){
     b.addEventListener("click", function(){ showPage(b.getAttribute("data-page")); });
