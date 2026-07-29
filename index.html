@@ -345,8 +345,17 @@
     transition:transform .2s ease,background .2s ease}
   .loc-link:hover{transform:translateY(-2px);background:color-mix(in srgb, var(--accent) 24%, transparent)}
   .loc-map{width:300px;max-width:100%;height:300px;border-radius:14px;overflow:hidden;margin-top:12px;
-    border:1px solid var(--line);background:var(--panel2)}
+    border:1px solid var(--line);background:var(--panel2);transition:none}
   .loc-map .leaflet-control-attribution{font-size:9px}
+  /* Enlarge map: resizes the SAME map in place (not a modal/overlay) so
+     panning/zooming still works normally - just much bigger. The controls
+     row floats on top, pinned to the bottom, so Live view stays reachable
+     and visibly still toggleable while enlarged. */
+  .loc-map.enlarged{position:fixed;inset:10px;width:auto;height:auto;z-index:55;
+    box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .loc-controls.enlarged{position:fixed;left:12px;right:12px;bottom:12px;z-index:56;
+    background:color-mix(in srgb, var(--panel) 92%, transparent);backdrop-filter:blur(20px) saturate(150%);
+    border:1px solid var(--line);border-radius:14px;padding:4px 14px;box-shadow:var(--shadow)}
 
   .ctl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
   .ctl-row:last-child{border-bottom:none}
@@ -633,9 +642,15 @@
         <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
       </div>
       <div class="loc-map" id="carMap"></div>
-      <div class="ctl-row">
-        <div class="ctl-label"><div class="t">Live view</div><div class="d">Force-polls the car every 5s while on — uses BYD's cloud much more than usual</div></div>
-        <label class="switch" id="liveViewWrap"><input type="checkbox" id="liveViewToggle"><span class="track"></span><span class="knob"></span></label>
+      <div class="loc-controls" id="locControls">
+        <div class="ctl-row">
+          <div class="ctl-label"><div class="t">Live view</div><div class="d">Force-polls the car every 5s while on — uses BYD's cloud much more than usual</div></div>
+          <label class="switch" id="liveViewWrap"><input type="checkbox" id="liveViewToggle"><span class="track"></span><span class="knob"></span></label>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl-label"><div class="t">Enlarge map</div><div class="d">Expands the map to nearly full screen — Live view keeps working</div></div>
+          <label class="switch" id="mapEnlargeWrap"><input type="checkbox" id="mapEnlargeToggle"><span class="track"></span><span class="knob"></span></label>
+        </div>
       </div>
     </div>
 
@@ -1461,18 +1476,24 @@
     var v = parseFloat(s.state); return isNaN(v) ? null : v;
   }
 
-  // Small 300x300 Leaflet map in the Location card, tiled from OSM (no API
-  // key needed). Created once on the first real fix, then just re-centered/
-  // re-marked on every subsequent poll - re-creating the map each time would
-  // reset the user's zoom/pan.
+  // Small 300x300 Leaflet map in the Location card, tiled from Google's
+  // satellite+labels ("hybrid") tiles. Note: this is the informal `/vt/`
+  // endpoint Google's own JS Maps SDK uses internally, not an official
+  // public tile API (unlike OSM's) - no key needed and it works fine today,
+  // same as countless other hobby Leaflet projects do it, but Google could
+  // change or block it without notice since it's unsupported for this use.
+  // Created once on the first real fix, then just re-centered/re-marked on
+  // every subsequent poll - re-creating the map each time would reset the
+  // user's zoom/pan.
   var carMap = null, carMarker = null;
   function updateCarMap(lat, lon){
     if(typeof L === "undefined") return;
     if(!carMap){
       carMap = L.map("carMap", { attributionControl: true }).setView([lat, lon], 15);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors"
+      L.tileLayer("https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
+        maxZoom: 20,
+        subdomains: ["mt0","mt1","mt2","mt3"],
+        attribution: "Imagery &copy; Google"
       }).addTo(carMap);
       carMarker = L.marker([lat, lon]).addTo(carMap);
     } else {
@@ -2186,6 +2207,26 @@
         toast("Live view off","ok");
       }
     });
+  })();
+
+  // Enlarge map: resizes the SAME map element in place (not a modal/overlay
+  // page) so panning/zooming keeps working normally, just much bigger - the
+  // controls row (Live view + this toggle) floats on top, pinned to the
+  // bottom of the screen, so Live view stays visible and usable while
+  // enlarged instead of being covered by the now-fullscreen map.
+  function mapEnlarged(){ var el = $("carMap"); return !!el && el.classList.contains("enlarged"); }
+  function setMapEnlarged(on){
+    var mapEl = $("carMap"), controlsEl = $("locControls"), toggle = $("mapEnlargeToggle");
+    if(!mapEl || !controlsEl) return;
+    mapEl.classList.toggle("enlarged", on);
+    controlsEl.classList.toggle("enlarged", on);
+    if(toggle) toggle.checked = on;
+    setTimeout(function(){ if(carMap) carMap.invalidateSize(); }, 50);
+  }
+  (function wireMapEnlarge(){
+    var toggle = $("mapEnlargeToggle");
+    if(!toggle) return;
+    toggle.addEventListener("change", function(e){ setMapEnlarged(e.target.checked); });
   })();
 
   // ---- vehicle control (lock/unlock/climate/flash/find via the control server) ----
@@ -3371,6 +3412,9 @@
       var liveViewToggle = $("liveViewToggle");
       if(liveViewToggle) liveViewToggle.checked = false;
       toast("Live view off","ok");
+    }
+    if(activePage === "car" && name !== "car" && mapEnlarged()){
+      setMapEnlarged(false);
     }
     PAGES.forEach(function(p){ $("page-"+p).hidden = name!==p; });
     document.querySelectorAll("#pageSwitch button").forEach(function(b){
