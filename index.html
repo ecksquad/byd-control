@@ -633,6 +633,10 @@
         <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
       </div>
       <div class="loc-map" id="carMap"></div>
+      <div class="ctl-row">
+        <div class="ctl-label"><div class="t">Live view</div><div class="d">Force-polls the car every 5s while on — uses BYD's cloud much more than usual</div></div>
+        <label class="switch" id="liveViewWrap"><input type="checkbox" id="liveViewToggle"><span class="track"></span><span class="knob"></span></label>
+      </div>
     </div>
 
     <div class="card c-tires">
@@ -2153,6 +2157,37 @@
       .catch(function(){ toast("Fetch failed","err"); render(); });
   });
 
+  // ---- Live view (Car page): force-polls the car every 5s while on, so
+  // Location updates faster than the normal 20s app refresh / 5min GPS
+  // poll interval can otherwise manage. Real cost is hitting BYD's cloud
+  // far more than usual, so it only ever runs while the Car page is open -
+  // leaving the page or closing the app stops it (see showPage()/unload).
+  var liveViewTimer = null;
+  function startLiveView(){
+    if(liveViewTimer) return;
+    liveViewTimer = setInterval(function(){
+      haCall("button","press",{entity_id:E.forcePoll}).catch(function(){});
+      refresh();
+    }, 5000);
+  }
+  function stopLiveView(){
+    clearInterval(liveViewTimer);
+    liveViewTimer = null;
+  }
+  (function wireLiveView(){
+    var toggle = $("liveViewToggle");
+    if(!toggle) return;
+    toggle.addEventListener("change", function(e){
+      if(e.target.checked){
+        startLiveView();
+        toast("Live view on — polling every 5s","ok");
+      } else {
+        stopLiveView();
+        toast("Live view off","ok");
+      }
+    });
+  })();
+
   // ---- vehicle control (lock/unlock/climate/flash/find via the control server) ----
   var HA_ENTRY_ID = "01KWKQR5VT9H0BYKJW1EKNA681";
   function haReloadEntry(){
@@ -2633,6 +2668,7 @@
     if(sirenActive) stopSiren();
     else if(stormActive) stopStorm();
     disconnectMirrorCam();
+    stopLiveView();
   });
 
   buildLightingUI();
@@ -3329,6 +3365,12 @@
     }
     if(activePage === "house" && name !== "house"){
       disconnectMirrorCam();
+    }
+    if(activePage === "car" && name !== "car" && liveViewTimer){
+      stopLiveView();
+      var liveViewToggle = $("liveViewToggle");
+      if(liveViewToggle) liveViewToggle.checked = false;
+      toast("Live view off","ok");
     }
     PAGES.forEach(function(p){ $("page-"+p).hidden = name!==p; });
     document.querySelectorAll("#pageSwitch button").forEach(function(b){
