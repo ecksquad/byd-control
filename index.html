@@ -3615,12 +3615,15 @@
   // same pattern as playMoo/playThunder above, just factored out since it's
   // now used by three different clips instead of one.
   function playSonosClip(url, volume, durationMs){
+    // sonos.snapshot/restore (not just a volume save) so whatever was
+    // actually playing - radio included - picks back up afterward, not
+    // just the volume level. play_media alone has no way to resume content,
+    // only Sonos's own snapshot mechanism captures the full playback state.
     var speakers = [EH.sonosTv, EH.sonosKitchen];
-    var priorVolumes = speakers.map(function(id){
-      var mp = state[id];
-      return (mp && mp.attributes && typeof mp.attributes.volume_level === "number") ? mp.attributes.volume_level : null;
-    });
-    return haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
+    return haCall("sonos", "snapshot", { entity_id: speakers })
+      .then(function(){
+        return haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume });
+      })
       .then(function(){
         return haCall("media_player", "play_media", {
           entity_id: speakers,
@@ -3630,10 +3633,7 @@
       })
       .then(function(){
         setTimeout(function(){
-          speakers.forEach(function(id, i){
-            if(priorVolumes[i] === null) return;
-            haCall("media_player", "volume_set", { entity_id: id, volume_level: priorVolumes[i] }).catch(function(){});
-          });
+          haCall("sonos", "restore", { entity_id: speakers }).catch(function(){});
         }, durationMs);
       })
       .catch(function(){});
