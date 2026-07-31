@@ -2655,7 +2655,7 @@
     var vol = stormThunderVolume() * (1 + (Math.random()*2 - 1) * rand * 0.5);
     haCall("media_player", "volume_set", {
       entity_id: [EH.sonosTv, EH.sonosKitchen],
-      volume_level: Math.min(1, Math.max(0.05, vol))
+      volume_level: Math.min(1, Math.max(0, vol))
     }).then(function(){
       return haCall("media_player", "play_media", {
         entity_id: [EH.sonosTv, EH.sonosKitchen],
