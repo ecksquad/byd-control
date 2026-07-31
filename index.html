@@ -1111,7 +1111,7 @@
           <input type="range" id="stormThunderRandom" min="0" max="100" step="1" value="40">
         </div>
         <div class="ctl-row">
-          <div class="ctl-label"><div class="t">🚨 Air raid siren</div><div class="d">Loops a siren on both speakers and triggers storm mode</div></div>
+          <div class="ctl-label"><div class="t">🚨 Air raid siren</div><div class="d">Loops a siren on both speakers and flashes every light, inside and out</div></div>
           <button class="btn ghost small" id="sirenBtn">Sound siren</button>
         </div>
         <div class="range-row">
@@ -2481,11 +2481,21 @@
   // fixed presets, not "whatever mixed on/off/brightness state each light
   // happened to be in"), so that part still snapshots and replays each
   // light individually, unchanged.
-  var STORM_SCENE_ON = "scene.outon";
-  var STORM_SCENE_OFF = "scene.outoff";
+  // Two scopes share this same flasher: the Storm mode toggle itself only
+  // flashes the outdoor lights (scene.outon/outoff), but the air raid siren
+  // is meant to flash the *whole house* like the original storm mode did
+  // (scene.stormon/stormoff, still present in Plejd - just no longer the
+  // toggle's own scenes). stormScope picks which pair + which lights get
+  // snapshotted/restored; see startStorm() for how the two arbitrate if
+  // both the toggle and the siren want the flasher at once.
+  var STORM_SCENES = {
+    outdoor: { on: "scene.outon", off: "scene.outoff" },
+    house: { on: "scene.stormon", off: "scene.stormoff" }
+  };
+  var stormScope = "outdoor";
   var STORM_INTERVAL_DEFAULT_SEC = 0.5; // 2/sec - the slider's own default/fallback
   // Devices that aren't in PLEJD_SITES (so they don't show up as a "light"
-  // in the app) but are still members of the outon/outoff Plejd scenes
+  // in the app) but are still members of the stormon/stormoff Plejd scenes
   // themselves - scene membership was set up directly in the Plejd app and
   // has nothing to do with this list, so removing something from
   // PLEJD_SITES doesn't stop the physical scene from still toggling it.
@@ -2501,7 +2511,11 @@
     });
     return ids;
   }
-  function stormRestoreIds(){ return outsidePlejdLightIds().concat(STORM_EXTRA_RESTORE_IDS); }
+  function stormRestoreIds(){
+    return stormScope === "house"
+      ? allPlejdLightIds().concat(STORM_EXTRA_RESTORE_IDS)
+      : outsidePlejdLightIds();
+  }
   var stormActive = false;
   var stormTimer = null;
   var stormPhaseOn = false;
@@ -2519,7 +2533,8 @@
     if(!stormActive) return;
     stormPhaseOn = !stormPhaseOn;
     var startedAt = Date.now();
-    var call = haCall("scene", "turn_on", { entity_id: stormPhaseOn ? STORM_SCENE_ON : STORM_SCENE_OFF });
+    var scenes = STORM_SCENES[stormScope];
+    var call = haCall("scene", "turn_on", { entity_id: stormPhaseOn ? scenes.on : scenes.off });
     call.catch(function(){}).then(function(){
       if(!stormActive) return;
       var wait = Math.max(0, stormIntervalMs() - (Date.now() - startedAt));
@@ -2537,7 +2552,15 @@
     });
     return snap;
   }
-  function startStorm(){
+  function startStorm(scope){
+    var nextScope = scope === "house" ? "house" : "outdoor";
+    // If the flasher's already running for the other scope (toggle vs.
+    // siren both want it at once), stop it first so the previous scope's
+    // lights get restored properly before switching what's being flashed -
+    // stormRestoreIds()/stopStorm() both key off stormScope, so it has to
+    // still be the OLD scope at the moment stopStorm() runs.
+    if(stormActive && stormScope !== nextScope) stopStorm();
+    stormScope = nextScope;
     stormActive = true;
     stormPhaseOn = false;
     clearTimeout(stormTimer);
@@ -2685,7 +2708,7 @@
     var toggle = $("stormModeToggle");
     toggle.addEventListener("change", function(e){
       if(e.target.checked){
-        startStorm();
+        startStorm("outdoor");
         toast("Storm mode on","ok");
       } else {
         stopStorm();
@@ -2699,11 +2722,13 @@
   wireStormMode();
 
   // Air raid siren: loops siren.mp3 on both Sonos speakers at the chosen
-  // volume for as long as it's active, riding along with the same
-  // Storm mode light-flash (startStorm/stopStorm) the toggle above uses -
-  // pressing this is meant to feel like pulling the alarm, not just
-  // playing a sound. Volume is restored per-speaker on stop, same pattern
-  // as playMoo/playThunder further down.
+  // volume for as long as it's active, riding along with the same flasher
+  // (startStorm/stopStorm) the toggle above uses - but forces the "house"
+  // scope rather than "outdoor", since the siren is meant to flash every
+  // light, inside and out, not just the outdoor ones the toggle controls
+  // on its own. Pressing this is meant to feel like pulling the alarm, not
+  // just playing a sound. Volume is restored per-speaker on stop, same
+  // pattern as playMoo/playThunder further down.
   var SIREN_URL = "https://ecksquad.github.io/byd-control/siren.mp3";
   var SIREN_DURATION_MS = 5400; // siren.mp3 runs ~5.4s - re-trigger on this cadence while active
   var sirenActive = false;
@@ -2734,8 +2759,8 @@
     });
     haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
       .then(sirenLoopStep).catch(sirenLoopStep);
-    if(!stormActive){
-      startStorm();
+    if(!stormActive || stormScope !== "house"){
+      startStorm("house");
       var toggle = $("stormModeToggle");
       if(toggle) toggle.checked = true;
     }
