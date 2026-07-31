@@ -409,16 +409,6 @@
   .mirror-cam-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;
     font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
-  /* Mirror snapshots gallery - grid of thumbnails, newest first */
-  .mirror-snaps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
-  .mirror-snap{border-radius:10px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);
-    transition:transform .2s ease,border-color .2s ease}
-  .mirror-snap:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--accent) 35%, transparent)}
-  .mirror-snap img{width:100%;height:90px;object-fit:cover;display:block;background:#000}
-  .mirror-snap .msn-meta{padding:6px 8px}
-  .mirror-snap .msn-label{font-size:12px;font-weight:700;text-transform:capitalize;color:var(--ink)}
-  .mirror-snap .msn-time{font-size:10.5px;color:var(--muted);margin-top:1px}
-  .mirror-snaps-empty{font-size:13px;color:var(--muted)}
 
   /* house page primitives */
   .disabled-group.is-off{opacity:.4;pointer-events:none}
@@ -868,11 +858,6 @@
         <video id="mirrorCamVideo" autoplay playsinline muted></video>
         <div class="mirror-cam-status" id="mirrorCamStatus">—</div>
       </div>
-    </div>
-
-    <div class="card c-mirror-snaps" style="grid-column:span 12">
-      <h2><span class="htitle"><span class="hicon">📸</span>Mirror snapshots</span></h2>
-      <div id="mirrorSnapsGrid" class="mirror-snaps-grid"></div>
     </div>
 
     <div class="card c-sonos-tv">
@@ -3401,7 +3386,7 @@
     activePage = name;
     try{ localStorage.setItem("carctrl_page", name); }catch(e){}
     render();
-    if(name === "house"){ connectMirrorCam(); loadMirrorSnapshots(); }
+    if(name === "house"){ connectMirrorCam(); }
   }
   document.querySelectorAll("#pageSwitch button").forEach(function(b){
     b.addEventListener("click", function(){ showPage(b.getAttribute("data-page")); });
@@ -3531,54 +3516,6 @@
       body.innerHTML = chargeMsgRow("Couldn't load charge history: "+e.message, true);
       $("chargeTotalCost").textContent = "--";
     });
-  }
-
-  // Mirror snapshots: reads the manifest the mirror's object detector
-  // writes to via the control server (see /mirror/snapshot on the Pi).
-  // Plain public fetch, no API key needed - it's the same GitHub Pages
-  // origin as this app. Cache-busted since GitHub's CDN holds onto raw
-  // content for a few minutes otherwise.
-  var MIRROR_SNAPS_URL = "https://ecksquad.github.io/byd-control/snapshots/";
-  function fmtSnapTime(ts){
-    var d = new Date(ts);
-    return d.toLocaleDateString("sv-SE",{day:"numeric",month:"short"})+" "+
-           d.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"});
-  }
-  function loadMirrorSnapshots(){
-    var grid = $("mirrorSnapsGrid");
-    if(!grid) return;
-    fetch(MIRROR_SNAPS_URL+"index.json?_="+Date.now())
-      .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
-      .then(function(list){
-        list = (list||[]).slice().reverse(); // newest first
-        if(!list.length){
-          grid.innerHTML = '<div class="mirror-snaps-empty">No snapshots yet.</div>';
-          return;
-        }
-        grid.innerHTML = "";
-        list.forEach(function(entry){
-          var card = document.createElement("div");
-          card.className = "mirror-snap";
-          var img = document.createElement("img");
-          img.src = MIRROR_SNAPS_URL+entry.file;
-          img.loading = "lazy";
-          img.alt = entry.label || "snapshot";
-          var meta = document.createElement("div");
-          meta.className = "msn-meta";
-          var label = document.createElement("div");
-          label.className = "msn-label";
-          label.textContent = entry.label || "object";
-          var time = document.createElement("div");
-          time.className = "msn-time";
-          time.textContent = fmtSnapTime(entry.ts);
-          meta.appendChild(label); meta.appendChild(time);
-          card.appendChild(img); card.appendChild(meta);
-          grid.appendChild(card);
-        });
-      })
-      .catch(function(){
-        grid.innerHTML = '<div class="mirror-snaps-empty">Couldn\'t load snapshots.</div>';
-      });
   }
 
   $("themeToggleBtn").addEventListener("click", function(){
@@ -3754,7 +3691,6 @@
     loadCharges();
     loadElpris();
     loadSchedules();
-    loadMirrorSnapshots();
   });
 
   // ---- settings modal ----
