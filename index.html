@@ -1095,8 +1095,20 @@
       <h2><span class="htitle"><span class="hicon">🎉</span>Fun stuff</span></h2>
       <div class="storm-mode-row">
         <div class="ctl-row">
-          <div class="ctl-label"><div class="t">⚡ Storm mode</div><div class="d">Flashes every light in the house, then restores them</div></div>
+          <div class="ctl-label"><div class="t">⚡ Storm mode</div><div class="d">Flashes the outdoor lights, then restores them</div></div>
           <label class="switch" id="stormModeWrap"><input type="checkbox" id="stormModeToggle"><span class="track"></span><span class="knob"></span></label>
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Flash speed</span><span class="v" id="stormRateVal">2.0/sec</span></div>
+          <input type="range" id="stormRateSlider" min="0.5" max="10" step="0.5" value="0.5">
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Thunder volume</span><span class="v" id="stormThunderVolVal">50%</span></div>
+          <input type="range" id="stormThunderVol" min="0" max="100" step="1" value="50">
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Storm randomness</span><span class="v" id="stormThunderRandomVal">40%</span></div>
+          <input type="range" id="stormThunderRandom" min="0" max="100" step="1" value="40">
         </div>
         <div class="ctl-row">
           <div class="ctl-label"><div class="t">🚨 Air raid siren</div><div class="d">Loops a siren on both speakers and triggers storm mode</div></div>
@@ -2453,13 +2465,13 @@
     });
   }
 
-  // Storm mode: flash the whole house on/off in unison, then put every
-  // light back exactly how it was found. Flashing itself alternates two
-  // Plejd scenes (scene.stormon / scene.stormoff, created in the Plejd app -
+  // Storm mode: flash the outdoor lights on/off in unison, then put every
+  // one back exactly how it was found. Flashing itself alternates two
+  // Plejd scenes (scene.outon / scene.outoff, created in the Plejd app -
   // see the disable-integration/create-scene/re-enable dance worked out
   // earlier) rather than calling light.turn_on/off on every individual
   // light. A scene trigger is a single mesh-wide broadcast that every
-  // device reacts to from its own locally-stored scene data, instead of ~26
+  // device reacts to from its own locally-stored scene data, instead of
   // sequential per-device BLE writes - the old light.turn_on/off approach
   // could only ever go as fast as that sequential dispatch (documented
   // as 1-5s per command at reconcileLightSoon above), which is why every
@@ -2469,23 +2481,40 @@
   // fixed presets, not "whatever mixed on/off/brightness state each light
   // happened to be in"), so that part still snapshots and replays each
   // light individually, unchanged.
-  var STORM_SCENE_ON = "scene.stormon";
-  var STORM_SCENE_OFF = "scene.stormoff";
-  var STORM_RATE_HZ = 2; // fixed - fast enough to read as a strobe, slow enough the mesh keeps up
+  var STORM_SCENE_ON = "scene.outon";
+  var STORM_SCENE_OFF = "scene.outoff";
+  var STORM_INTERVAL_DEFAULT_SEC = 0.5; // 2/sec - the slider's own default/fallback
   // Devices that aren't in PLEJD_SITES (so they don't show up as a "light"
-  // in the app) but are still members of the stormon/stormoff Plejd scenes
+  // in the app) but are still members of the outon/outoff Plejd scenes
   // themselves - scene membership was set up directly in the Plejd app and
   // has nothing to do with this list, so removing something from
   // PLEJD_SITES doesn't stop the physical scene from still toggling it.
   // Tracked here purely so the snapshot/restore still covers it; the real
   // fix is editing the two scenes in the Plejd app to drop it entirely.
   var STORM_EXTRA_RESTORE_IDS = [];
-  function stormRestoreIds(){ return allPlejdLightIds().concat(STORM_EXTRA_RESTORE_IDS); }
+  function outsidePlejdLightIds(){
+    var ids = [];
+    PLEJD_SITES.forEach(function(site){
+      site.rooms.forEach(function(room){
+        if(room.label === "Utomhusbelysning") room.lights.forEach(function(l){ ids.push(l.id); });
+      });
+    });
+    return ids;
+  }
+  function stormRestoreIds(){ return outsidePlejdLightIds().concat(STORM_EXTRA_RESTORE_IDS); }
   var stormActive = false;
   var stormTimer = null;
   var stormPhaseOn = false;
   var stormPreState = null;
-  function stormIntervalMs(){ return Math.round(1000 / STORM_RATE_HZ); }
+  // Rate is dial-able from the Flash speed slider (2/sec down to 1 every
+  // 10s) rather than fixed, so re-reads the slider's current value on
+  // every step - moving it mid-storm takes effect on the very next toggle.
+  function stormIntervalMs(){
+    var el = $("stormRateSlider");
+    var sec = el ? parseFloat(el.value) : STORM_INTERVAL_DEFAULT_SEC;
+    if(!(sec > 0)) sec = STORM_INTERVAL_DEFAULT_SEC;
+    return Math.round(sec * 1000);
+  }
   function stormLoopStep(){
     if(!stormActive) return;
     stormPhaseOn = !stormPhaseOn;
@@ -2512,6 +2541,7 @@
     stormActive = true;
     stormPhaseOn = false;
     clearTimeout(stormTimer);
+    startStormThunder();
     // Snapshot from a fresh /api/states call rather than the locally cached
     // `state` object, which is only as recent as the last ~poll and can be
     // stale enough (especially right after reconnecting the Plejd
@@ -2545,6 +2575,7 @@
     stormActive = false;
     clearTimeout(stormTimer);
     stormTimer = null;
+    stopStormThunder();
     var pre = stormPreState;
     stormPreState = null;
     if(!pre) return;
@@ -2576,6 +2607,80 @@
     });
     [1000, 2000, 3500, 5500, 8000, 12000, 16000].forEach(function(delay){ setTimeout(fireRestore, delay); });
   }
+  // Thunder rides along with Storm mode the same way the siren does -
+  // starts when the lights start flashing, stops (and restores each
+  // speaker's own prior volume) when they stop. Base cadence is once every
+  // 10s (THUNDER_URL/playThunder are the same clip+function the Stormbull
+  // logo easter egg uses); the "Storm randomness" slider jitters both the
+  // wait between strikes and each strike's volume so back-to-back storms
+  // don't sound identical, more like real thunder than a metronome.
+  var STORM_THUNDER_BASE_MS = 10000;
+  var stormThunderActive = false;
+  var stormThunderTimer = null;
+  var stormThunderPriorVolumes = null;
+  function stormThunderRandomness(){
+    var el = $("stormThunderRandom");
+    return el ? parseInt(el.value, 10)/100 : 0.4;
+  }
+  function stormThunderVolume(){
+    var el = $("stormThunderVol");
+    return el ? parseInt(el.value, 10)/100 : 0.5;
+  }
+  function stormThunderStrike(){
+    if(!stormThunderActive) return;
+    var rand = stormThunderRandomness();
+    var vol = stormThunderVolume() * (1 + (Math.random()*2 - 1) * rand * 0.5);
+    haCall("media_player", "volume_set", {
+      entity_id: [EH.sonosTv, EH.sonosKitchen],
+      volume_level: Math.min(1, Math.max(0.05, vol))
+    }).then(function(){
+      return haCall("media_player", "play_media", {
+        entity_id: [EH.sonosTv, EH.sonosKitchen],
+        media_content_id: THUNDER_URL,
+        media_content_type: "music"
+      });
+    }).catch(function(){});
+    var wait = Math.round(STORM_THUNDER_BASE_MS * (1 + (Math.random()*2 - 1) * rand));
+    stormThunderTimer = setTimeout(stormThunderStrike, Math.max(2000, wait));
+  }
+  function startStormThunder(){
+    if(stormThunderActive) return;
+    stormThunderActive = true;
+    var speakers = [EH.sonosTv, EH.sonosKitchen];
+    stormThunderPriorVolumes = speakers.map(function(id){
+      var mp = state[id];
+      return (mp && mp.attributes && typeof mp.attributes.volume_level === "number") ? mp.attributes.volume_level : null;
+    });
+    stormThunderStrike();
+  }
+  function stopStormThunder(){
+    if(!stormThunderActive) return;
+    stormThunderActive = false;
+    clearTimeout(stormThunderTimer);
+    stormThunderTimer = null;
+    var speakers = [EH.sonosTv, EH.sonosKitchen];
+    if(stormThunderPriorVolumes){
+      speakers.forEach(function(id, i){
+        if(stormThunderPriorVolumes[i] === null) return;
+        haCall("media_player", "volume_set", { entity_id: id, volume_level: stormThunderPriorVolumes[i] }).catch(function(){});
+      });
+    }
+    stormThunderPriorVolumes = null;
+  }
+  function wireStormRateSlider(){
+    var el = $("stormRateSlider"), val = $("stormRateVal");
+    if(!el || !val) return;
+    function fmt(sec){ return sec <= 1 ? (1/sec).toFixed(1)+"/sec" : "1 per "+(Math.round(sec*10)/10)+"s"; }
+    function update(){ val.textContent = fmt(parseFloat(el.value)); }
+    el.addEventListener("input", update);
+    update();
+  }
+  function wireStormThunderSliders(){
+    ["stormThunderVol", "stormThunderRandom"].forEach(function(id){
+      var el = $(id), val = $(id+"Val");
+      if(el && val) el.addEventListener("input", function(){ val.textContent = el.value + "%"; });
+    });
+  }
   function wireStormMode(){
     var toggle = $("stormModeToggle");
     toggle.addEventListener("change", function(e){
@@ -2588,6 +2693,8 @@
         toast("Storm mode off — lights restored","ok");
       }
     });
+    wireStormRateSlider();
+    wireStormThunderSliders();
   }
   wireStormMode();
 
