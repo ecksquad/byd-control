@@ -416,18 +416,18 @@
   .locate-overlay{position:absolute;inset:0;display:flex;flex-direction:column;
     justify-content:space-between;padding:calc(env(safe-area-inset-top,0px)+14px) 16px calc(env(safe-area-inset-bottom,0px)+24px)}
   .locate-back{align-self:flex-start;background:rgba(0,0,0,.45);backdrop-filter:blur(6px)}
-  .locate-status{align-self:center;text-align:center;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.7)}
-  .locate-pulse{width:64px;height:64px;border-radius:50%;margin:0 auto 14px;
-    background:radial-gradient(circle,var(--accent) 0%,rgba(0,0,0,0) 70%)}
-  .locate-pulse.on{animation:locatePulse 1.6s ease-out infinite}
-  .locate-pulse.off{background:radial-gradient(circle,#666 0%,rgba(0,0,0,0) 70%);opacity:.6}
-  @keyframes locatePulse{
-    0%{transform:scale(.7);opacity:.9}
-    70%{transform:scale(1.6);opacity:0}
-    100%{transform:scale(1.6);opacity:0}
-  }
-  .locate-label{font-size:22px;font-weight:700}
-  .locate-sub{font-size:13px;opacity:.8;margin-top:4px}
+  .locate-panel{align-self:center;width:min(440px,92%);max-height:62vh;overflow-y:auto;
+    background:rgba(10,14,12,.6);backdrop-filter:blur(10px);border-radius:16px;
+    padding:16px 18px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .locate-panel-title{font-size:13px;opacity:.75;text-align:center}
+  .locate-room{margin-bottom:14px}
+  .locate-room:last-child{margin-bottom:0}
+  .locate-room-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+    opacity:.7;font-weight:650;margin-bottom:6px}
+  .locate-device-row{display:flex;justify-content:space-between;gap:10px;
+    font-size:14px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+  .locate-device-row:last-child{border-bottom:none}
+  .locate-device-band{opacity:.6;font-size:12px;white-space:nowrap}
 
 
   /* house page primitives */
@@ -881,10 +881,8 @@
     </div>
 
     <div class="card c-locate">
-      <h2><span class="htitle"><span class="hicon">📡</span>Find Annika's phone</span></h2>
-      <div class="vitals-list">
-        <div class="vrow"><span class="k">Status</span><span class="v" id="locateSummary">—</span></div>
-      </div>
+      <h2><span class="htitle"><span class="hicon">📡</span>WiFi devices</span></h2>
+      <div class="vitals-list" id="locateRoomSummary"><div class="vrow"><span class="k">Loading…</span></div></div>
       <button class="btn primary" id="locateOpenBtn" style="margin-top:12px;width:100%">Open camera view</button>
     </div>
 
@@ -1188,12 +1186,9 @@
       <video id="locateCamVideo" autoplay playsinline muted></video>
       <div class="locate-overlay">
         <button class="btn ghost small locate-back" id="locateBackBtn">← Back</button>
-        <div class="locate-status">
-          <div class="locate-pulse off" id="locatePulse"></div>
-          <div class="locate-label" id="locateLabel">Looking…</div>
-          <div class="locate-sub" id="locateSub"></div>
+        <div class="locate-panel" id="locatePanel">
+          <div class="locate-panel-title">Loading…</div>
         </div>
-        <div></div>
       </div>
     </div>
   </div>
@@ -3546,7 +3541,7 @@
   function startLocatePoll(){
     if(locateTimer) return;
     var poll = function(){
-      controlGet("/locate/status").then(renderLocateStatus).catch(function(){ renderLocateStatus(null); });
+      controlGet("/locate/devices").then(renderLocateDevices).catch(function(){ renderLocateDevices(null); });
     };
     poll();
     locateTimer = setInterval(poll, 15000);
@@ -3555,26 +3550,55 @@
     clearInterval(locateTimer);
     locateTimer = null;
   }
-  function renderLocateStatus(status){
-    var summary=$("locateSummary"), label=$("locateLabel"), sub=$("locateSub"), pulse=$("locatePulse");
-    if(!status || !status.ok){
-      if(summary) summary.textContent = "Unavailable";
-      if(label) label.textContent = "Unavailable";
-      if(sub) sub.textContent = "Couldn't reach the locator service";
-      if(pulse) pulse.className = "locate-pulse off";
+  function groupDevicesByNode(devices){
+    var byNode = {}, order = [];
+    devices.forEach(function(d){
+      if(!byNode[d.node]){ byNode[d.node] = []; order.push(d.node); }
+      byNode[d.node].push(d);
+    });
+    return order.map(function(node){ return {node:node, devices:byNode[node]}; });
+  }
+  function bandLabel(d){
+    if(d.wired) return "wired";
+    return {band2_4:"2.4G", band5:"5G", band6:"6G"}[d.band] || "";
+  }
+  function renderLocateDevices(status){
+    var summaryEl=$("locateRoomSummary"), panelEl=$("locatePanel");
+    if(!status || !status.ok || !status.devices){
+      if(summaryEl) summaryEl.innerHTML = '<div class="vrow"><span class="k">Unavailable</span></div>';
+      if(panelEl) panelEl.innerHTML = '<div class="locate-panel-title">Couldn’t reach the locator service</div>';
       return;
     }
-    if(status.connected){
-      if(summary) summary.textContent = "Near "+status.node;
-      if(label) label.textContent = "Near "+status.node;
-      if(sub) sub.textContent = "";
-      if(pulse) pulse.className = "locate-pulse on";
-    } else {
-      var age = status.last_seen ? fmtAge(new Date(status.last_seen*1000).toISOString()) : null;
-      if(summary) summary.textContent = "Off WiFi";
-      if(label) label.textContent = "Off WiFi";
-      if(sub) sub.textContent = status.last_node ? ("Last seen near "+status.last_node+(age?" · "+age:"")) : "";
-      if(pulse) pulse.className = "locate-pulse off";
+    var groups = groupDevicesByNode(status.devices);
+    if(summaryEl){
+      summaryEl.innerHTML = "";
+      if(!groups.length) summaryEl.innerHTML = '<div class="vrow"><span class="k">No devices found</span></div>';
+      groups.forEach(function(g){
+        var row=document.createElement("div"); row.className="vrow";
+        var k=document.createElement("span"); k.className="k"; k.textContent=g.node;
+        var v=document.createElement("span"); v.className="v";
+        v.textContent = g.devices.length+" device"+(g.devices.length===1?"":"s");
+        row.appendChild(k); row.appendChild(v);
+        summaryEl.appendChild(row);
+      });
+    }
+    if(panelEl){
+      panelEl.innerHTML = "";
+      if(!groups.length) panelEl.innerHTML = '<div class="locate-panel-title">No devices found</div>';
+      groups.forEach(function(g){
+        var roomDiv=document.createElement("div"); roomDiv.className="locate-room";
+        var title=document.createElement("div"); title.className="locate-room-title";
+        title.textContent = g.node+" · "+g.devices.length;
+        roomDiv.appendChild(title);
+        g.devices.forEach(function(d){
+          var row=document.createElement("div"); row.className="locate-device-row";
+          var name=document.createElement("span"); name.textContent=d.name;
+          var band=document.createElement("span"); band.className="locate-device-band"; band.textContent=bandLabel(d);
+          row.appendChild(name); row.appendChild(band);
+          roomDiv.appendChild(row);
+        });
+        panelEl.appendChild(roomDiv);
+      });
     }
   }
   function startLocateCamera(){
