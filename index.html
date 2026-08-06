@@ -410,24 +410,29 @@
   .mirror-cam-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;
     font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
-  /* Find Annika's phone - full-screen camera passthrough + node/signal overlay */
-  .locate-view{position:fixed;inset:0;background:#000;z-index:50}
-  .locate-view video{width:100%;height:100%;object-fit:cover;display:block}
-  .locate-overlay{position:absolute;inset:0;display:flex;flex-direction:column;
-    justify-content:space-between;padding:calc(env(safe-area-inset-top,0px)+14px) 16px calc(env(safe-area-inset-bottom,0px)+24px)}
-  .locate-back{align-self:flex-start;background:rgba(0,0,0,.45);backdrop-filter:blur(6px)}
-  .locate-panel{align-self:center;width:min(440px,92%);max-height:62vh;overflow-y:auto;
-    background:rgba(10,14,12,.6);backdrop-filter:blur(10px);border-radius:16px;
-    padding:16px 18px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5)}
-  .locate-panel-title{font-size:13px;opacity:.75;text-align:center}
-  .locate-room{margin-bottom:14px}
-  .locate-room:last-child{margin-bottom:0}
-  .locate-room-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;
-    opacity:.7;font-weight:650;margin-bottom:6px}
-  .locate-device-row{display:flex;justify-content:space-between;gap:10px;
-    font-size:14px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.1)}
-  .locate-device-row:last-child{border-bottom:none}
-  .locate-device-band{opacity:.6;font-size:12px;white-space:nowrap}
+  /* WiFi devices map - draggable room nodes with their devices clustered
+     underneath. Not to scale / not real positioning - just a spatial
+     grouping the user arranges once to roughly match their own house. */
+  .locate-map-wrap{position:fixed;inset:0;background:var(--bg);
+    background-image:radial-gradient(circle,var(--line) 1px,transparent 1px);
+    background-size:28px 28px;overflow:hidden;touch-action:none}
+  .locate-back{position:absolute;top:calc(env(safe-area-inset-top,0px)+14px);left:16px;z-index:5}
+  .locate-hint{position:absolute;top:calc(env(safe-area-inset-top,0px)+18px);left:0;right:0;
+    text-align:center;font-size:12px;color:var(--faint);pointer-events:none}
+  .locate-room-node{position:absolute;transform:translate(-50%,-50%);
+    display:flex;flex-direction:column;align-items:center;cursor:grab;user-select:none;
+    max-width:150px}
+  .locate-room-node.dragging{cursor:grabbing;z-index:10}
+  .locate-room-dot{width:22px;height:22px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 0 6px var(--accent-soft);flex:none}
+  .locate-room-label{font-size:12px;font-weight:650;margin-top:6px;color:var(--ink);
+    text-align:center;white-space:nowrap}
+  .locate-room-count{font-size:11px;color:var(--faint);margin-top:1px}
+  .locate-device-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;
+    margin-top:8px;max-height:120px;overflow-y:auto;padding:2px}
+  .locate-device-chip{font-size:11px;line-height:1.4;padding:3px 8px;border-radius:999px;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);white-space:nowrap}
+  .locate-device-chip.wired{opacity:.65}
 
 
   /* house page primitives */
@@ -883,7 +888,7 @@
     <div class="card c-locate">
       <h2><span class="htitle"><span class="hicon">📡</span>WiFi devices</span></h2>
       <div class="vitals-list" id="locateRoomSummary"><div class="vrow"><span class="k">Loading…</span></div></div>
-      <button class="btn primary" id="locateOpenBtn" style="margin-top:12px;width:100%">Open camera view</button>
+      <button class="btn primary" id="locateOpenBtn" style="margin-top:12px;width:100%">Open map</button>
     </div>
 
     <div class="card c-sonos-tv">
@@ -1182,14 +1187,9 @@
   </div>
 
   <div class="page" id="page-locate" hidden>
-    <div class="locate-view">
-      <video id="locateCamVideo" autoplay playsinline muted></video>
-      <div class="locate-overlay">
-        <button class="btn ghost small locate-back" id="locateBackBtn">← Back</button>
-        <div class="locate-panel" id="locatePanel">
-          <div class="locate-panel-title">Loading…</div>
-        </div>
-      </div>
+    <div class="locate-map-wrap" id="locateMapWrap">
+      <button class="btn ghost small locate-back" id="locateBackBtn">← Back</button>
+      <div class="locate-hint">Drag a room to match your house — it's remembered</div>
     </div>
   </div>
 
@@ -3530,14 +3530,22 @@
     mCamStatus("—");
   }
 
-  // ---- Find Annika's phone: which Deco mesh node her iPhone is currently
-  // attached to (see server.py's /locate/status + deco_client.py). Polling
-  // runs on the House page too (for the small card's summary line), not
-  // just the full camera view, so start/stop is tied to either page being
-  // active (see wantsLocatePoll() in showPage()). The camera itself is only
-  // requested when opening the full view - never automatically. ----
+  // ---- WiFi devices map: draggable per-room nodes with their devices
+  // clustered underneath. Deco only tells us which physical node (room) a
+  // device is attached to, not real x/y position - so this is a spatial
+  // *grouping* the user arranges once to roughly match their own house
+  // (persisted to localStorage), not literal positioning. Polling runs
+  // whenever House or the locate page is active (wantsLocatePoll() in
+  // showPage()) since the House card's summary needs it too. ----
   var locateTimer = null;
-  var locateStream = null;
+  var locateLastDevices = null;
+  var LOCATE_LAYOUT_KEY = "carctrl_locate_layout";
+  function loadLocateLayout(){
+    try{ return JSON.parse(localStorage.getItem(LOCATE_LAYOUT_KEY) || "{}"); }catch(e){ return {}; }
+  }
+  function saveLocateLayout(layout){
+    try{ localStorage.setItem(LOCATE_LAYOUT_KEY, JSON.stringify(layout)); }catch(e){}
+  }
   function startLocatePoll(){
     if(locateTimer) return;
     var poll = function(){
@@ -3563,12 +3571,14 @@
     return {band2_4:"2.4G", band5:"5G", band6:"6G"}[d.band] || "";
   }
   function renderLocateDevices(status){
-    var summaryEl=$("locateRoomSummary"), panelEl=$("locatePanel");
+    var summaryEl = $("locateRoomSummary");
     if(!status || !status.ok || !status.devices){
       if(summaryEl) summaryEl.innerHTML = '<div class="vrow"><span class="k">Unavailable</span></div>';
-      if(panelEl) panelEl.innerHTML = '<div class="locate-panel-title">Couldn’t reach the locator service</div>';
+      locateLastDevices = null;
+      renderLocateMap();
       return;
     }
+    locateLastDevices = status.devices;
     var groups = groupDevicesByNode(status.devices);
     if(summaryEl){
       summaryEl.innerHTML = "";
@@ -3582,47 +3592,80 @@
         summaryEl.appendChild(row);
       });
     }
-    if(panelEl){
-      panelEl.innerHTML = "";
-      if(!groups.length) panelEl.innerHTML = '<div class="locate-panel-title">No devices found</div>';
-      groups.forEach(function(g){
-        var roomDiv=document.createElement("div"); roomDiv.className="locate-room";
-        var title=document.createElement("div"); title.className="locate-room-title";
-        title.textContent = g.node+" · "+g.devices.length;
-        roomDiv.appendChild(title);
-        g.devices.forEach(function(d){
-          var row=document.createElement("div"); row.className="locate-device-row";
-          var name=document.createElement("span"); name.textContent=d.name;
-          var band=document.createElement("span"); band.className="locate-device-band"; band.textContent=bandLabel(d);
-          row.appendChild(name); row.appendChild(band);
-          roomDiv.appendChild(row);
-        });
-        panelEl.appendChild(roomDiv);
-      });
-    }
+    renderLocateMap();
   }
-  function startLocateCamera(){
-    if(locateStream) return Promise.resolve();
-    return navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false}).then(function(stream){
-      locateStream = stream;
-      var v = $("locateCamVideo");
-      if(v) v.srcObject = stream;
+  function defaultRoomPosition(index, total){
+    // Evenly spaced fallback row, only used until the user drags a room
+    // (or for any newly-seen room not yet placed).
+    var pad = 18;
+    var x = total <= 1 ? 50 : pad + (100-2*pad) * (index/(total-1));
+    return {x:x, y: index % 2 === 0 ? 34 : 60};
+  }
+  function renderLocateMap(){
+    var wrap = $("locateMapWrap");
+    if(!wrap) return;
+    wrap.querySelectorAll(".locate-room-node").forEach(function(n){ n.remove(); });
+    if(!locateLastDevices) return;
+    var groups = groupDevicesByNode(locateLastDevices);
+    var layout = loadLocateLayout();
+    groups.forEach(function(g, i){
+      var pos = layout[g.node] || defaultRoomPosition(i, groups.length);
+      var node = document.createElement("div");
+      node.className = "locate-room-node";
+      node.style.left = pos.x+"%";
+      node.style.top = pos.y+"%";
+      node.dataset.room = g.node;
+
+      var dot = document.createElement("div"); dot.className = "locate-room-dot";
+      var label = document.createElement("div"); label.className = "locate-room-label"; label.textContent = g.node;
+      var count = document.createElement("div"); count.className = "locate-room-count";
+      count.textContent = g.devices.length+" device"+(g.devices.length===1?"":"s");
+      var chips = document.createElement("div"); chips.className = "locate-device-chips";
+      g.devices.forEach(function(d){
+        var chip = document.createElement("span");
+        chip.className = "locate-device-chip"+(d.wired?" wired":"");
+        chip.textContent = d.name;
+        chip.title = d.name+" · "+bandLabel(d);
+        chips.appendChild(chip);
+      });
+
+      node.appendChild(dot); node.appendChild(label); node.appendChild(count); node.appendChild(chips);
+      wrap.appendChild(node);
+      wireRoomDrag(node, wrap);
     });
   }
-  function stopLocateCamera(){
-    if(locateStream){
-      locateStream.getTracks().forEach(function(t){ try{ t.stop(); }catch(e){} });
-      locateStream = null;
-    }
-    var v = $("locateCamVideo");
-    if(v) v.srcObject = null;
+  function wireRoomDrag(node, wrap){
+    var dragging = false, moved = false;
+    node.addEventListener("pointerdown", function(ev){
+      // Ignore drags starting inside the scrollable chip list, so scrolling
+      // a long device list doesn't get hijacked into moving the room.
+      if(ev.target.closest(".locate-device-chips")) return;
+      dragging = true; moved = false;
+      node.classList.add("dragging");
+      node.setPointerCapture(ev.pointerId);
+    });
+    node.addEventListener("pointermove", function(ev){
+      if(!dragging) return;
+      moved = true;
+      var rect = wrap.getBoundingClientRect();
+      var x = Math.min(96, Math.max(4, (ev.clientX-rect.left)/rect.width*100));
+      var y = Math.min(94, Math.max(8, (ev.clientY-rect.top)/rect.height*100));
+      node.style.left = x+"%"; node.style.top = y+"%";
+    });
+    node.addEventListener("pointerup", function(){
+      if(!dragging) return;
+      dragging = false;
+      node.classList.remove("dragging");
+      if(moved){
+        var layout = loadLocateLayout();
+        layout[node.dataset.room] = { x: parseFloat(node.style.left), y: parseFloat(node.style.top) };
+        saveLocateLayout(layout);
+      }
+    });
   }
   (function wireLocate(){
     var openBtn = $("locateOpenBtn");
-    if(openBtn) openBtn.addEventListener("click", function(){
-      startLocateCamera().then(function(){ showPage("locate"); })
-        .catch(function(){ toast("Camera permission needed to open this view","err"); });
-    });
+    if(openBtn) openBtn.addEventListener("click", function(){ showPage("locate"); renderLocateMap(); });
     var backBtn = $("locateBackBtn");
     if(backBtn) backBtn.addEventListener("click", function(){ showPage("house"); });
   })();
@@ -3646,9 +3689,6 @@
       var liveViewToggle = $("liveViewToggle");
       if(liveViewToggle) liveViewToggle.checked = false;
       toast("Live view off","ok");
-    }
-    if(activePage === "locate" && name !== "locate"){
-      stopLocateCamera();
     }
     if(wantsLocatePoll(activePage) && !wantsLocatePoll(name)){
       stopLocatePoll();
