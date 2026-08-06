@@ -194,11 +194,12 @@
   .c-schedule{grid-column:span 12}
   .c-alarm{grid-column:span 12}
   .c-mirror-cam{grid-column:span 12}
+  .c-locate{grid-column:span 6}
   @media (max-width:760px){
     .c-battery,.c-status,.c-vitals,.c-location,.c-tires,.c-charge,.c-util,.c-remote,.c-climate,
     .c-windows,.c-comfort,.c-history,
     .c-sonos-tv,.c-sonos-kitchen,.c-daikin,.c-wifi,.c-network,.c-doors,.c-price,.c-backup,.c-mower,
-    .c-lighting,.c-schedule,.c-alarm,.c-mirror-cam{grid-column:span 12}
+    .c-lighting,.c-schedule,.c-alarm,.c-mirror-cam,.c-locate{grid-column:span 12}
   }
 
   /* Plejd lighting section */
@@ -408,6 +409,25 @@
   .mirror-cam-wrap video{width:100%;height:auto;display:block}
   .mirror-cam-status{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#fff;
     font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+
+  /* Find Annika's phone - full-screen camera passthrough + node/signal overlay */
+  .locate-view{position:fixed;inset:0;background:#000;z-index:50}
+  .locate-view video{width:100%;height:100%;object-fit:cover;display:block}
+  .locate-overlay{position:absolute;inset:0;display:flex;flex-direction:column;
+    justify-content:space-between;padding:calc(env(safe-area-inset-top,0px)+14px) 16px calc(env(safe-area-inset-bottom,0px)+24px)}
+  .locate-back{align-self:flex-start;background:rgba(0,0,0,.45);backdrop-filter:blur(6px)}
+  .locate-status{align-self:center;text-align:center;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.7)}
+  .locate-pulse{width:64px;height:64px;border-radius:50%;margin:0 auto 14px;
+    background:radial-gradient(circle,var(--accent) 0%,rgba(0,0,0,0) 70%)}
+  .locate-pulse.on{animation:locatePulse 1.6s ease-out infinite}
+  .locate-pulse.off{background:radial-gradient(circle,#666 0%,rgba(0,0,0,0) 70%);opacity:.6}
+  @keyframes locatePulse{
+    0%{transform:scale(.7);opacity:.9}
+    70%{transform:scale(1.6);opacity:0}
+    100%{transform:scale(1.6);opacity:0}
+  }
+  .locate-label{font-size:22px;font-weight:700}
+  .locate-sub{font-size:13px;opacity:.8;margin-top:4px}
 
 
   /* house page primitives */
@@ -860,6 +880,14 @@
       </div>
     </div>
 
+    <div class="card c-locate">
+      <h2><span class="htitle"><span class="hicon">📡</span>Find Annika's phone</span></h2>
+      <div class="vitals-list">
+        <div class="vrow"><span class="k">Status</span><span class="v" id="locateSummary">—</span></div>
+      </div>
+      <button class="btn primary" id="locateOpenBtn" style="margin-top:12px;width:100%">Open camera view</button>
+    </div>
+
     <div class="card c-sonos-tv">
       <h2><span class="htitle"><span class="hicon">🔊</span>Sonos — TV room</span></h2>
       <div class="now-playing-row">
@@ -1153,6 +1181,21 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <div class="page" id="page-locate" hidden>
+    <div class="locate-view">
+      <video id="locateCamVideo" autoplay playsinline muted></video>
+      <div class="locate-overlay">
+        <button class="btn ghost small locate-back" id="locateBackBtn">← Back</button>
+        <div class="locate-status">
+          <div class="locate-pulse off" id="locatePulse"></div>
+          <div class="locate-label" id="locateLabel">Looking…</div>
+          <div class="locate-sub" id="locateSub"></div>
+        </div>
+        <div></div>
+      </div>
+    </div>
   </div>
 
   <footer>Polls every 20s through the control server &middot; lock/unlock/climate call BYD's cloud directly</footer>
@@ -3492,8 +3535,77 @@
     mCamStatus("—");
   }
 
+  // ---- Find Annika's phone: which Deco mesh node her iPhone is currently
+  // attached to (see server.py's /locate/status + deco_client.py). Polling
+  // runs on the House page too (for the small card's summary line), not
+  // just the full camera view, so start/stop is tied to either page being
+  // active (see wantsLocatePoll() in showPage()). The camera itself is only
+  // requested when opening the full view - never automatically. ----
+  var locateTimer = null;
+  var locateStream = null;
+  function startLocatePoll(){
+    if(locateTimer) return;
+    var poll = function(){
+      controlGet("/locate/status").then(renderLocateStatus).catch(function(){ renderLocateStatus(null); });
+    };
+    poll();
+    locateTimer = setInterval(poll, 15000);
+  }
+  function stopLocatePoll(){
+    clearInterval(locateTimer);
+    locateTimer = null;
+  }
+  function renderLocateStatus(status){
+    var summary=$("locateSummary"), label=$("locateLabel"), sub=$("locateSub"), pulse=$("locatePulse");
+    if(!status || !status.ok){
+      if(summary) summary.textContent = "Unavailable";
+      if(label) label.textContent = "Unavailable";
+      if(sub) sub.textContent = "Couldn't reach the locator service";
+      if(pulse) pulse.className = "locate-pulse off";
+      return;
+    }
+    if(status.connected){
+      if(summary) summary.textContent = "Near "+status.node;
+      if(label) label.textContent = "Near "+status.node;
+      if(sub) sub.textContent = "";
+      if(pulse) pulse.className = "locate-pulse on";
+    } else {
+      var age = status.last_seen ? fmtAge(new Date(status.last_seen*1000).toISOString()) : null;
+      if(summary) summary.textContent = "Off WiFi";
+      if(label) label.textContent = "Off WiFi";
+      if(sub) sub.textContent = status.last_node ? ("Last seen near "+status.last_node+(age?" · "+age:"")) : "";
+      if(pulse) pulse.className = "locate-pulse off";
+    }
+  }
+  function startLocateCamera(){
+    if(locateStream) return Promise.resolve();
+    return navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false}).then(function(stream){
+      locateStream = stream;
+      var v = $("locateCamVideo");
+      if(v) v.srcObject = stream;
+    });
+  }
+  function stopLocateCamera(){
+    if(locateStream){
+      locateStream.getTracks().forEach(function(t){ try{ t.stop(); }catch(e){} });
+      locateStream = null;
+    }
+    var v = $("locateCamVideo");
+    if(v) v.srcObject = null;
+  }
+  (function wireLocate(){
+    var openBtn = $("locateOpenBtn");
+    if(openBtn) openBtn.addEventListener("click", function(){
+      startLocateCamera().then(function(){ showPage("locate"); })
+        .catch(function(){ toast("Camera permission needed to open this view","err"); });
+    });
+    var backBtn = $("locateBackBtn");
+    if(backBtn) backBtn.addEventListener("click", function(){ showPage("house"); });
+  })();
+
   // ---- Car/House/Elpris/Secret page switcher ----
-  var PAGES = ["car","house","elpris","secret"];
+  var PAGES = ["car","house","elpris","secret","locate"];
+  function wantsLocatePoll(name){ return name === "house" || name === "locate"; }
   function showPage(name){
     if(PAGES.indexOf(name)===-1) name="car";
     if(activePage === "secret" && name !== "secret" && stormActive){
@@ -3511,6 +3623,12 @@
       if(liveViewToggle) liveViewToggle.checked = false;
       toast("Live view off","ok");
     }
+    if(activePage === "locate" && name !== "locate"){
+      stopLocateCamera();
+    }
+    if(wantsLocatePoll(activePage) && !wantsLocatePoll(name)){
+      stopLocatePoll();
+    }
     PAGES.forEach(function(p){ $("page-"+p).hidden = name!==p; });
     document.querySelectorAll("#pageSwitch button").forEach(function(b){
       b.classList.toggle("active", b.getAttribute("data-page")===name);
@@ -3519,6 +3637,7 @@
     try{ localStorage.setItem("carctrl_page", name); }catch(e){}
     render();
     if(name === "house"){ connectMirrorCam(); }
+    if(wantsLocatePoll(name)){ startLocatePoll(); }
   }
   document.querySelectorAll("#pageSwitch button").forEach(function(b){
     b.addEventListener("click", function(){ showPage(b.getAttribute("data-page")); });
