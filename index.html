@@ -1693,6 +1693,14 @@
       var top = vv.offsetTop + 14;
       collapseBtn.style.top = top + "px";
       speedBadge.style.top = top + "px";
+      // right:16px is relative to the layout viewport's right edge, which
+      // is exactly the kind of value that can desync from what's actually
+      // visible - same root cause as the top offset, just on the
+      // horizontal axis. Pin an explicit left instead, computed from the
+      // visual viewport's own true width.
+      collapseBtn.style.right = "auto";
+      var btnWidth = collapseBtn.getBoundingClientRect().width || collapseBtn.offsetWidth;
+      collapseBtn.style.left = (vv.offsetLeft + vv.width - 16 - btnWidth) + "px";
     }
     update();
     vv.addEventListener("resize", update);
@@ -1702,6 +1710,8 @@
       vv.removeEventListener("scroll", update);
       collapseBtn.style.top = "";
       speedBadge.style.top = "";
+      collapseBtn.style.right = "";
+      collapseBtn.style.left = "";
     };
   }
   (function wireCarMapFullscreen(){
