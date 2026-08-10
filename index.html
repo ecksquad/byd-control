@@ -369,14 +369,14 @@
   .loc-map-wrap.fullscreen{position:fixed;inset:0;z-index:40;background:var(--bg)}
   .loc-map-wrap.fullscreen .loc-map{width:100%;height:100%;max-width:none;border-radius:0;margin-top:0;border:none}
   .map-collapse-btn{position:fixed;top:14px;right:16px;z-index:2001;
-    display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);color:#fff;
+    display:inline-flex;align-items:center;gap:6px;background:rgba(20,20,20,.82);color:#fff;
     border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:650;
-    backdrop-filter:blur(6px);cursor:pointer;transition:background .2s ease}
-  .map-collapse-btn:hover{background:rgba(0,0,0,.7)}
+    cursor:pointer;transition:background .2s ease}
+  .map-collapse-btn:hover{background:rgba(0,0,0,.9)}
   .map-speed-badge{position:fixed;top:14px;left:50%;
-    transform:translateX(-50%);z-index:2001;background:rgba(0,0,0,.55);color:#fff;
+    transform:translateX(-50%);z-index:2001;background:rgba(20,20,20,.82);color:#fff;
     border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700;
-    backdrop-filter:blur(6px);font-variant-numeric:tabular-nums}
+    font-variant-numeric:tabular-nums}
   @supports (top: env(safe-area-inset-top)){
     .map-collapse-btn{top:calc(env(safe-area-inset-top,0px)+14px)}
     .map-speed-badge{top:calc(env(safe-area-inset-top,0px)+14px)}
@@ -1641,34 +1641,6 @@
       }
       wrap.classList.toggle("fullscreen", on);
       $("mapFullscreenBtn").style.display = on ? "none" : "";
-      collapseBtn.style.display = on ? "" : "none";
-      speedBadge.style.display = on ? "" : "none";
-      if(on){
-        // TEMPORARY diagnostic for the Android Edge invisible-button bug -
-        // remove once fixed. Deferred two frames + a tick so the browser
-        // actually PAINTS the fullscreen change before alert() blocks the
-        // main thread - an alert() called in the same tick as the DOM
-        // change can freeze the screenshot on the pre-change frame even
-        // though the DOM already reflects the new state, which is exactly
-        // what the first diagnostic run showed (stale background, but
-        // "correct" reported rects).
-        requestAnimationFrame(function(){ requestAnimationFrame(function(){ setTimeout(function(){
-          var cbr = collapseBtn.getBoundingClientRect(), sbr = speedBadge.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
-          alert(
-            "wrap display=" + getComputedStyle(wrap).display +
-            " pos=" + getComputedStyle(wrap).position +
-            " rect=" + Math.round(wr.top) + "," + Math.round(wr.left) + "," + Math.round(wr.width) + "x" + Math.round(wr.height) +
-            "\ncb inBody=" + document.body.contains(collapseBtn) +
-            " display=" + getComputedStyle(collapseBtn).display +
-            " rect=" + Math.round(cbr.top) + "," + Math.round(cbr.left) + "," + Math.round(cbr.width) + "x" + Math.round(cbr.height) +
-            "\nsb inBody=" + document.body.contains(speedBadge) +
-            " display=" + getComputedStyle(speedBadge).display +
-            " rect=" + Math.round(sbr.top) + "," + Math.round(sbr.left) + "," + Math.round(sbr.width) + "x" + Math.round(sbr.height) +
-            "\nviewport=" + window.innerWidth + "x" + window.innerHeight +
-            " bodyClass=" + document.body.className
-          );
-        }, 200); }); });
-      }
     }catch(e){
       toast("Fullscreen map error: "+e.message,"err");
       return;
@@ -1688,7 +1660,17 @@
       setTimeout(function(){
         carMap.invalidateSize();
         if(lastCarPos) carMap.panTo([lastCarPos.lat, lastCarPos.lon]);
+        // Shown only after the map's own relayout settles - on some Android
+        // WebView builds, invalidateSize()'s tile-pane relayout was
+        // recreating GPU compositing layers that painted over these
+        // fixed-position siblings regardless of z-index when they were
+        // already visible beforehand.
+        collapseBtn.style.display = on ? "" : "none";
+        speedBadge.style.display = on ? "" : "none";
       }, 0);
+    } else {
+      collapseBtn.style.display = on ? "" : "none";
+      speedBadge.style.display = on ? "" : "none";
     }
   }
   (function wireCarMapFullscreen(){
