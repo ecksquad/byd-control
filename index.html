@@ -358,15 +358,19 @@
   .loc-map .leaflet-control-attribution{font-size:9px}
   .loc-map-wrap.fullscreen{position:fixed;inset:0;z-index:40;background:var(--bg)}
   .loc-map-wrap.fullscreen .loc-map{width:100%;height:100%;max-width:none;border-radius:0;margin-top:0;border:none}
-  .map-collapse-btn{position:fixed;top:calc(env(safe-area-inset-top,0px)+14px);right:16px;z-index:2001;
+  .map-collapse-btn{position:fixed;top:14px;right:16px;z-index:2001;
     display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);color:#fff;
     border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:650;
     backdrop-filter:blur(6px);cursor:pointer;transition:background .2s ease}
   .map-collapse-btn:hover{background:rgba(0,0,0,.7)}
-  .map-speed-badge{position:fixed;top:calc(env(safe-area-inset-top,0px)+14px);left:50%;
+  .map-speed-badge{position:fixed;top:14px;left:50%;
     transform:translateX(-50%);z-index:2001;background:rgba(0,0,0,.55);color:#fff;
     border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700;
     backdrop-filter:blur(6px);font-variant-numeric:tabular-nums}
+  @supports (top: env(safe-area-inset-top)){
+    .map-collapse-btn{top:calc(env(safe-area-inset-top,0px)+14px)}
+    .map-speed-badge{top:calc(env(safe-area-inset-top,0px)+14px)}
+  }
 
   .ctl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
   .ctl-row:last-child{border-bottom:none}
@@ -1614,19 +1618,24 @@
   function toggleCarMapFullscreen(on){
     var wrap = $("carMapWrap"), collapseBtn = $("mapCollapseBtn"), speedBadge = $("mapSpeedBadge");
     if(!wrap) return;
-    if(on){
-      reparentToBody(wrap, carMapWrapState);
-      reparentToBody(collapseBtn, mapCollapseBtnState);
-      reparentToBody(speedBadge, mapSpeedBadgeState);
-    } else {
-      restoreFromBody(wrap, carMapWrapState);
-      restoreFromBody(collapseBtn, mapCollapseBtnState);
-      restoreFromBody(speedBadge, mapSpeedBadgeState);
+    try{
+      if(on){
+        reparentToBody(wrap, carMapWrapState);
+        reparentToBody(collapseBtn, mapCollapseBtnState);
+        reparentToBody(speedBadge, mapSpeedBadgeState);
+      } else {
+        restoreFromBody(wrap, carMapWrapState);
+        restoreFromBody(collapseBtn, mapCollapseBtnState);
+        restoreFromBody(speedBadge, mapSpeedBadgeState);
+      }
+      wrap.classList.toggle("fullscreen", on);
+      $("mapFullscreenBtn").style.display = on ? "none" : "";
+      collapseBtn.style.display = on ? "" : "none";
+      speedBadge.style.display = on ? "" : "none";
+    }catch(e){
+      toast("Fullscreen map error: "+e.message,"err");
+      return;
     }
-    wrap.classList.toggle("fullscreen", on);
-    $("mapFullscreenBtn").style.display = on ? "none" : "";
-    collapseBtn.style.display = on ? "" : "none";
-    speedBadge.style.display = on ? "" : "none";
     // Fullscreen implies wanting the freshest possible position, so it
     // drives Live view directly rather than needing a separate toggle -
     // same on/off pairing as the existing "leaving Car page" behavior.
