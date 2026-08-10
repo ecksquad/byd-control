@@ -1656,6 +1656,12 @@
       stopLiveView();
       if(liveViewToggleEl) liveViewToggleEl.checked = false;
     }
+    var showOverlays = function(){
+      collapseBtn.style.display = on ? "" : "none";
+      speedBadge.style.display = on ? "" : "none";
+      if(on){ mapOverlayVvCleanup = applyVisualViewportFix(collapseBtn, speedBadge); }
+      else if(mapOverlayVvCleanup){ mapOverlayVvCleanup(); mapOverlayVvCleanup = null; }
+    };
     if(carMap){
       setTimeout(function(){
         carMap.invalidateSize();
@@ -1665,39 +1671,38 @@
         // recreating GPU compositing layers that painted over these
         // fixed-position siblings regardless of z-index when they were
         // already visible beforehand.
-        collapseBtn.style.display = on ? "" : "none";
-        speedBadge.style.display = on ? "" : "none";
-        if(on) debugWhatsOnTop(collapseBtn, speedBadge);
+        showOverlays();
       }, 0);
     } else {
-      collapseBtn.style.display = on ? "" : "none";
-      speedBadge.style.display = on ? "" : "none";
+      showOverlays();
     }
   }
-  function describeEl(el){
-    if(!el) return "null";
-    return (el.tagName||"?") + (el.id?"#"+el.id:"") + (el.className?"."+String(el.className).replace(/ /g,"."):"");
-  }
-  function debugWhatsOnTop(collapseBtn, speedBadge){
-    // TEMPORARY diagnostic - checks what element the browser actually
-    // considers topmost at these coordinates, since computed style/rect
-    // alone can't reveal a stacking/paint-order bug (they report declared
-    // values, not the visual result). Deferred so this runs after the
-    // frame actually paints.
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){ setTimeout(function(){
-      var cbr = collapseBtn.getBoundingClientRect(), sbr = speedBadge.getBoundingClientRect();
-      var cbTop = document.elementFromPoint(cbr.left+cbr.width/2, cbr.top+cbr.height/2);
-      var sbTop = document.elementFromPoint(sbr.left+sbr.width/2, sbr.top+sbr.height/2);
-      var cbStack = document.elementsFromPoint ? document.elementsFromPoint(cbr.left+cbr.width/2, cbr.top+cbr.height/2).slice(0,4).map(describeEl).join(" > ") : "n/a";
-      alert(
-        "cb topmost=" + describeEl(cbTop) + " isCb=" + (cbTop===collapseBtn) +
-        "\ncb stack=" + cbStack +
-        "\nsb topmost=" + describeEl(sbTop) + " isSb=" + (sbTop===speedBadge) +
-        "\ncb opacity=" + getComputedStyle(collapseBtn).opacity +
-        " visibility=" + getComputedStyle(collapseBtn).visibility +
-        " transform=" + getComputedStyle(collapseBtn).transform
-      );
-    }, 200); }); });
+  var mapOverlayVvCleanup = null;
+  function applyVisualViewportFix(collapseBtn, speedBadge){
+    // position:fixed is spec'd to track the layout viewport, but confirmed
+    // live: forcing "Desktop site" mode (which disables Android's dynamic
+    // address-bar-hiding behavior) made these elements render correctly,
+    // with every other position/style/stacking check passing fine in
+    // normal mobile mode. That points at a layout-viewport vs
+    // visual-viewport desync from the dynamic toolbar, not a real paint
+    // bug - pinning explicitly to the visual viewport's own offset
+    // sidesteps it.
+    var vv = window.visualViewport;
+    if(!vv) return null;
+    function update(){
+      var top = vv.offsetTop + 14;
+      collapseBtn.style.top = top + "px";
+      speedBadge.style.top = top + "px";
+    }
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return function cleanup(){
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      collapseBtn.style.top = "";
+      speedBadge.style.top = "";
+    };
   }
   (function wireCarMapFullscreen(){
     var full = $("mapFullscreenBtn"), collapse = $("mapCollapseBtn");
