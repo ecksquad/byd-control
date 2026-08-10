@@ -340,6 +340,7 @@
   .loc-state{font-size:16px;font-weight:700}
   .loc-coords{font-family:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;font-size:12.5px;color:var(--muted)}
   .loc-age{font-size:12px;color:var(--faint)}
+  .loc-distance{font-size:13px;font-weight:600;color:var(--accent)}
   .loc-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;
     background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
     border-radius:10px;padding:9px 12px;font-size:13px;font-weight:650;text-decoration:none;
@@ -656,6 +657,7 @@
         <div class="loc-state" id="locState">—</div>
         <div class="loc-coords" id="locCoords">—, —</div>
         <div class="loc-age" id="locAge">—</div>
+        <div class="loc-distance" id="locDistance"></div>
         <a class="loc-link" id="locLink" href="#" target="_blank" rel="noopener">Open in Maps &#8599;</a>
       </div>
       <div class="loc-map" id="carMap"></div>
@@ -1537,6 +1539,61 @@
       carMap.panTo([lat, lon]);
     }
   }
+
+  // Device's own position, shown as a second marker on the car map plus a
+  // "N km away" readout - only watched while the Car page is open (same
+  // page-scoped lifecycle as Live view/Mirror cam/Locate poll), asking for
+  // geolocation permission the first time that happens.
+  var deviceMarker = null, devicePos = null, deviceGeoWatchId = null, lastCarPos = null;
+  function haversineKm(lat1, lon1, lat2, lon2){
+    var R = 6371, toRad = Math.PI/180;
+    var dLat = (lat2-lat1)*toRad, dLon = (lon2-lon1)*toRad;
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+      Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+  function updateDeviceMarker(lat, lon){
+    if(typeof L === "undefined" || !carMap) return;
+    if(!deviceMarker){
+      deviceMarker = L.circleMarker([lat, lon], {
+        radius: 8, color: "#2dd4bf", weight: 3, fillColor: "#2dd4bf", fillOpacity: 0.9
+      }).addTo(carMap).bindTooltip("You");
+    } else {
+      deviceMarker.setLatLng([lat, lon]);
+    }
+  }
+  function updateDistanceDisplay(){
+    var el = $("locDistance");
+    if(!el) return;
+    if(!lastCarPos || !devicePos){ el.textContent = ""; return; }
+    var km = haversineKm(lastCarPos.lat, lastCarPos.lon, devicePos.lat, devicePos.lon);
+    el.textContent = (km < 1 ? Math.round(km*1000)+" m" : km.toFixed(1)+" km")+" away";
+  }
+  var deviceGeoDeniedToastShown = false;
+  function startDeviceGeo(){
+    if(deviceGeoWatchId !== null || !navigator.geolocation) return;
+    deviceGeoWatchId = navigator.geolocation.watchPosition(function(pos){
+      devicePos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      updateDeviceMarker(devicePos.lat, devicePos.lon);
+      updateDistanceDisplay();
+    }, function(err){
+      devicePos = null;
+      updateDistanceDisplay();
+      if(err.code === 1 && !deviceGeoDeniedToastShown){
+        deviceGeoDeniedToastShown = true;
+        toast("Location permission denied — can't show distance to car","err");
+      }
+    }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+  }
+  function stopDeviceGeo(){
+    if(deviceGeoWatchId !== null){
+      navigator.geolocation.clearWatch(deviceGeoWatchId);
+      deviceGeoWatchId = null;
+    }
+    devicePos = null;
+    if(deviceMarker && carMap){ carMap.removeLayer(deviceMarker); deviceMarker = null; }
+    updateDistanceDisplay();
+  }
   function on(s){ return !!s && s.state==="on"; }
   function $(id){ return document.getElementById(id); }
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1856,9 +1913,13 @@
       $("locAge").textContent = state[E.gpsUpdated] ? "GPS "+fmtAge(state[E.gpsUpdated].state) : "";
       $("locLink").href = "https://www.google.com/maps?q="+lat+","+lon;
       updateCarMap(lat, lon);
+      lastCarPos = { lat: lat, lon: lon };
+      updateDistanceDisplay();
     } else {
       $("locState").textContent = "--"; $("locCoords").textContent = "—, —"; $("locAge").textContent = "";
       $("locLink").href = "#";
+      lastCarPos = null;
+      updateDistanceDisplay();
     }
 
     // charging controls — reflect live state unless mid-action
@@ -2846,6 +2907,7 @@
     else if(stormActive) stopStorm();
     disconnectMirrorCam();
     stopLiveView();
+    stopDeviceGeo();
   });
 
   buildLightingUI();
@@ -3690,6 +3752,9 @@
       if(liveViewToggle) liveViewToggle.checked = false;
       toast("Live view off","ok");
     }
+    if(activePage === "car" && name !== "car"){
+      stopDeviceGeo();
+    }
     if(wantsLocatePoll(activePage) && !wantsLocatePoll(name)){
       stopLocatePoll();
     }
@@ -3702,6 +3767,7 @@
     render();
     if(name === "house"){ connectMirrorCam(); }
     if(wantsLocatePoll(name)){ startLocatePoll(); }
+    if(name === "car"){ startDeviceGeo(); }
   }
   document.querySelectorAll("#pageSwitch button").forEach(function(b){
     b.addEventListener("click", function(){ showPage(b.getAttribute("data-page")); });
