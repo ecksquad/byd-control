@@ -1643,6 +1643,21 @@
       $("mapFullscreenBtn").style.display = on ? "none" : "";
       collapseBtn.style.display = on ? "" : "none";
       speedBadge.style.display = on ? "" : "none";
+      if(on){
+        // TEMPORARY diagnostic for the Android Edge invisible-button bug -
+        // remove once fixed. alert() blocks so there's time to read/copy it.
+        var cbr = collapseBtn.getBoundingClientRect(), sbr = speedBadge.getBoundingClientRect();
+        alert(
+          "cb inBody=" + document.body.contains(collapseBtn) +
+          " display=" + getComputedStyle(collapseBtn).display +
+          " rect=" + Math.round(cbr.top) + "," + Math.round(cbr.left) + "," + Math.round(cbr.width) + "x" + Math.round(cbr.height) +
+          "\nsb inBody=" + document.body.contains(speedBadge) +
+          " display=" + getComputedStyle(speedBadge).display +
+          " rect=" + Math.round(sbr.top) + "," + Math.round(sbr.left) + "," + Math.round(sbr.width) + "x" + Math.round(sbr.height) +
+          "\nviewport=" + window.innerWidth + "x" + window.innerHeight +
+          " bodyClass=" + document.body.className
+        );
+      }
     }catch(e){
       toast("Fullscreen map error: "+e.message,"err");
       return;
