@@ -41,6 +41,16 @@
   html,body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,"Segoe UI",Roboto,ui-sans-serif,system-ui,sans-serif;}
   body{padding:20px 16px 60px;display:flex;justify-content:center;position:relative;min-height:100vh;overflow-x:hidden}
+  /* body's own overflow-x:hidden - needed to stop other page content from
+     causing horizontal rubber-banding - has been seen on some mobile
+     browser engines to also clip position:fixed descendants (the map's
+     reparented collapse button/speed badge) on narrow viewports, even
+     though overflow-x alone shouldn't establish a containing block for
+     fixed elements per spec. Only actually triggers where content can
+     overflow horizontally, i.e. narrow/portrait, matching "works wide,
+     fails narrow" exactly - so it's suspended only while the map is
+     fullscreen, not removed globally. */
+  body.map-fullscreen-active{overflow-x:visible}
   .wrap{width:100%;max-width:920px;position:relative;z-index:1}
 
   ::selection{background:color-mix(in srgb, var(--accent) 35%, transparent);color:var(--ink)}
@@ -1619,6 +1629,7 @@
     var wrap = $("carMapWrap"), collapseBtn = $("mapCollapseBtn"), speedBadge = $("mapSpeedBadge");
     if(!wrap) return;
     try{
+      document.body.classList.toggle("map-fullscreen-active", on);
       if(on){
         reparentToBody(wrap, carMapWrapState);
         reparentToBody(collapseBtn, mapCollapseBtnState);
