@@ -165,6 +165,12 @@
   .hicon{font-size:15px;margin-right:8px;line-height:1;flex:none}
   .card.collapsed .card-chevron{transform:rotate(-90deg)}
   .card.collapsed .card-body{display:none}
+  .tabular{font-variant-numeric:tabular-nums}
+  .weight-row{display:flex;align-items:baseline;gap:14px;margin-bottom:10px}
+  .weight-current{font-size:30px;font-weight:750;color:var(--ink);flex:1}
+  .weight-current .wu{font-size:15px;font-weight:550;color:var(--muted)}
+  .weight-delta{font-size:14px;font-weight:650}
+  .weight-chart{color:var(--ink)}
 
   /* overview */
   .c-battery{grid-column:span 4}
@@ -628,7 +634,7 @@
           <span class="sub" id="chargeSub">—</span>
         </div>
         <div class="batt-bar"><i id="battFill"></i></div>
-        <img src="atto3.webp" alt="BYD Atto 3" class="car-img">
+        <img src="atto3.webp" alt="BYD Atto 3" class="car-img" id="carPhoto">
         <div class="car-stats">
           <div class="range"><span id="rangeVal">--</span> <small>km range</small></div>
           <div class="range"><span id="kmPrice">--</span> <small>kr / 100 km</small></div>
@@ -1186,6 +1192,35 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <div class="page" id="page-weight" hidden>
+    <div class="grid">
+      <div class="card c-weight" data-person="annika" style="grid-column:span 12">
+        <h2><span class="htitle">Annika</span></h2>
+        <div class="weight-row">
+          <div class="weight-current tabular"><span class="wv">--</span><span class="wu"> kg</span></div>
+          <div class="weight-delta tabular"></div>
+        </div>
+        <div class="weight-chart"></div>
+      </div>
+      <div class="card c-weight" data-person="cameron" style="grid-column:span 12">
+        <h2><span class="htitle">Cameron</span></h2>
+        <div class="weight-row">
+          <div class="weight-current tabular"><span class="wv">--</span><span class="wu"> kg</span></div>
+          <div class="weight-delta tabular"></div>
+        </div>
+        <div class="weight-chart"></div>
+      </div>
+      <div class="card c-weight" data-person="milo" style="grid-column:span 12">
+        <h2><span class="htitle">Milo</span></h2>
+        <div class="weight-row">
+          <div class="weight-current tabular"><span class="wv">--</span><span class="wu"> kg</span></div>
+          <div class="weight-delta tabular"></div>
+        </div>
+        <div class="weight-chart"></div>
+      </div>
+    </div>
   </div>
 
   <div class="page" id="page-locate" hidden>
@@ -3733,7 +3768,7 @@
   })();
 
   // ---- Car/House/Elpris/Secret page switcher ----
-  var PAGES = ["car","house","elpris","secret","locate"];
+  var PAGES = ["car","house","elpris","secret","locate","weight"];
   function wantsLocatePoll(name){ return name === "house" || name === "locate"; }
   function showPage(name){
     if(PAGES.indexOf(name)===-1) name="car";
@@ -4064,6 +4099,138 @@
     wireClipButton("doorKnockBtn", "doorKnockVol", 0.25, playDoorKnock, "Door knock");
     wireClipButton("airhornBtn", "airhornVol", 0.3, playAirhorn, "Air horn");
     wireClipButton("footstepsBtn", "footstepsVol", 0.2, playFootsteps, "Footsteps");
+  })();
+
+  (function wireWeightPage(){
+    var photo = $("carPhoto");
+    if(!photo) return;
+    var PEOPLE = [
+      { key:"annika", hex:"#E69F00" },
+      { key:"cameron", hex:"#009E73" },
+      { key:"milo", hex:"#56B4E9" }
+    ];
+    var SWE_MONTHS = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
+    var MAX_BUCKET_POINTS = 10;
+
+    function isoWeek(d){
+      var dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      var dayNum = (dt.getUTCDay()+6)%7;
+      dt.setUTCDate(dt.getUTCDate()-dayNum+3);
+      var firstThursday = new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+      var week = 1+Math.round(((dt-firstThursday)/86400000-3+((firstThursday.getUTCDay()+6)%7))/7);
+      return { year: dt.getUTCFullYear(), week: week };
+    }
+    function bucketHistory(rawHistory){
+      if(!rawHistory || !rawHistory.length) return [];
+      var sorted = rawHistory.slice().sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+      var byDay = {};
+      sorted.forEach(function(r){ byDay[r.ts.slice(0,10)] = r.weight_kg; });
+      var days = Object.keys(byDay).map(function(day){ return { date:new Date(day+"T00:00:00"), kg:byDay[day] }; });
+      function keyFor(d,g){
+        if(g==="week"||g==="biweek"){ var w=isoWeek(d); return g==="week" ? (w.year+"-w"+w.week) : (w.year+"-bw"+Math.ceil(w.week/2)); }
+        if(g==="month") return d.getFullYear()+"-m"+d.getMonth();
+        return d.getFullYear()+"-q"+Math.floor(d.getMonth()/3);
+      }
+      function labelFor(d,g){
+        if(g==="week"||g==="biweek") return "v."+isoWeek(d).week;
+        if(g==="month") return SWE_MONTHS[d.getMonth()];
+        return SWE_MONTHS[Math.floor(d.getMonth()/3)*3];
+      }
+      function bucketize(g){
+        var map = {};
+        days.forEach(function(d){
+          var key = keyFor(d.date,g);
+          if(!map[key]) map[key] = { sum:0, n:0, repDate:d.date };
+          map[key].sum += d.kg; map[key].n += 1; map[key].repDate = d.date;
+        });
+        return Object.keys(map).map(function(k){
+          var b = map[k];
+          return { kg: b.sum/b.n, label: labelFor(b.repDate,g), date: b.repDate };
+        }).sort(function(a,b){ return a.date-b.date; });
+      }
+      var granularities = ["week","biweek","month","quarter"];
+      for(var i=0;i<granularities.length;i++){
+        var buckets = bucketize(granularities[i]);
+        if(buckets.length <= MAX_BUCKET_POINTS || granularities[i]==="quarter") return buckets;
+      }
+    }
+    function axisChartSVG(buckets, hex, w, h){
+      var mL=52, mR=10, mT=10, mB=30;
+      var plotW=w-mL-mR, plotH=h-mT-mB;
+      var vals = buckets.map(function(b){ return b.kg; });
+      var rawMin=Math.min.apply(null,vals), rawMax=Math.max.apply(null,vals);
+      var pad = Math.max(0.6,(rawMax-rawMin)*0.25);
+      var min=rawMin-pad, max=rawMax+pad;
+      function x(i){ return buckets.length===1 ? mL+plotW/2 : mL+i*(plotW/(buckets.length-1)); }
+      function y(v){ return mT+plotH*(1-(v-min)/(max-min)); }
+      var pts = buckets.map(function(b,i){ return [x(i), y(b.kg)]; });
+      var linePath = pts.map(function(p,i){ return (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" ");
+      var areaPath = linePath+" L"+pts[pts.length-1][0].toFixed(1)+","+(mT+plotH).toFixed(1)+" L"+pts[0][0].toFixed(1)+","+(mT+plotH).toFixed(1)+" Z";
+      var yTicks = [min+(max-min)*0.15, min+(max-min)*0.5, min+(max-min)*0.85];
+      var gridlines = yTicks.map(function(v){
+        var gy = y(v).toFixed(1);
+        return "<line x1=\""+mL+"\" y1=\""+gy+"\" x2=\""+(mL+plotW).toFixed(1)+"\" y2=\""+gy+"\" stroke=\"currentColor\" stroke-opacity=\".1\" stroke-width=\"1\"/>"+
+          "<text x=\""+(mL-8)+"\" y=\""+(+gy+3.5)+"\" text-anchor=\"end\" font-size=\"11\" fill=\"currentColor\" opacity=\".65\" class=\"tabular\">"+v.toFixed(0)+"</text>";
+      }).join("");
+      var step = Math.max(1, Math.ceil(buckets.length/10));
+      var xLabels = buckets.map(function(b,i){
+        return (i%step===0 || i===buckets.length-1) ? ("<text x=\""+x(i).toFixed(1)+"\" y=\""+(h-4)+"\" text-anchor=\"middle\" font-size=\"10\" fill=\"currentColor\" opacity=\".65\">"+b.label+"</text>") : "";
+      }).join("");
+      return "<svg width=\""+w+"\" height=\""+h+"\" viewBox=\"0 0 "+w+" "+h+"\" style=\"overflow:visible\">"+
+        gridlines+
+        "<path d=\""+areaPath+"\" fill=\""+hex+"\" opacity=\".12\"/>"+
+        "<path d=\""+linePath+"\" fill=\"none\" stroke=\""+hex+"\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"+
+        pts.slice(0,-1).map(function(p){ return "<circle cx=\""+p[0].toFixed(1)+"\" cy=\""+p[1].toFixed(1)+"\" r=\"2.5\" fill=\""+hex+"\" opacity=\".55\"/>"; }).join("")+
+        "<circle cx=\""+pts[pts.length-1][0].toFixed(1)+"\" cy=\""+pts[pts.length-1][1].toFixed(1)+"\" r=\"3.5\" fill=\""+hex+"\"/>"+
+        xLabels+
+      "</svg>";
+    }
+    function renderWeightPage(historyByPerson){
+      PEOPLE.forEach(function(p){
+        var card = document.querySelector('.c-weight[data-person="'+p.key+'"]');
+        if(!card) return;
+        var buckets = bucketHistory(historyByPerson[p.key] || []);
+        var wv = card.querySelector(".wv"), deltaEl = card.querySelector(".weight-delta"), chartEl = card.querySelector(".weight-chart");
+        if(!buckets.length){
+          wv.textContent = "--";
+          deltaEl.textContent = "";
+          chartEl.innerHTML = "";
+          return;
+        }
+        var cur = buckets[buckets.length-1].kg;
+        var delta = +(buckets[buckets.length-1].kg - buckets[0].kg).toFixed(1);
+        wv.textContent = cur.toFixed(1);
+        deltaEl.textContent = (delta<=0?"▼ ":"▲ ")+Math.abs(delta)+" kg";
+        deltaEl.style.color = p.hex;
+        chartEl.style.color = "var(--ink)";
+        chartEl.innerHTML = axisChartSVG(buckets, p.hex, 640, 220);
+      });
+    }
+    function loadWeightHistory(){
+      var c = cfg();
+      return fetch(c.controlUrl.replace(/\/+$/,"")+"/weight/history", {
+        headers:{ "X-Api-Key": c.controlKey }
+      }).then(function(r){ return r.json(); }).then(function(data){
+        if(!data.ok) return;
+        var byPerson = {};
+        data.history.forEach(function(rec){
+          (byPerson[rec.person] = byPerson[rec.person] || []).push(rec);
+        });
+        renderWeightPage(byPerson);
+      }).catch(function(){ /* best-effort - page just shows placeholders */ });
+    }
+    var taps = [];
+    photo.style.cursor = "pointer";
+    photo.addEventListener("click", function(){
+      var now = Date.now();
+      taps = taps.filter(function(t){ return now-t < 1500; });
+      taps.push(now);
+      if(taps.length >= 3){
+        taps = [];
+        showPage("weight");
+        loadWeightHistory();
+      }
+    });
   })();
 
   $("refreshBtn").addEventListener("click", function(){
