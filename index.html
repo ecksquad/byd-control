@@ -358,13 +358,13 @@
   .loc-map .leaflet-control-attribution{font-size:9px}
   .loc-map-wrap.fullscreen{position:fixed;inset:0;z-index:40;background:var(--bg)}
   .loc-map-wrap.fullscreen .loc-map{width:100%;height:100%;max-width:none;border-radius:0;margin-top:0;border:none}
-  .map-collapse-btn{position:absolute;top:calc(env(safe-area-inset-top,0px)+14px);right:16px;z-index:41;
+  .map-collapse-btn{position:fixed;top:calc(env(safe-area-inset-top,0px)+14px);right:16px;z-index:2001;
     display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);color:#fff;
     border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:650;
     backdrop-filter:blur(6px);cursor:pointer;transition:background .2s ease}
   .map-collapse-btn:hover{background:rgba(0,0,0,.7)}
-  .map-speed-badge{position:absolute;top:calc(env(safe-area-inset-top,0px)+14px);left:50%;
-    transform:translateX(-50%);z-index:41;background:rgba(0,0,0,.55);color:#fff;
+  .map-speed-badge{position:fixed;top:calc(env(safe-area-inset-top,0px)+14px);left:50%;
+    transform:translateX(-50%);z-index:2001;background:rgba(0,0,0,.55);color:#fff;
     border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700;
     backdrop-filter:blur(6px);font-variant-numeric:tabular-nums}
 
@@ -680,9 +680,9 @@
       </div>
       <div class="loc-map-wrap" id="carMapWrap">
         <div class="loc-map" id="carMap"></div>
-        <div class="map-speed-badge" id="mapSpeedBadge" style="display:none">--</div>
-        <button class="map-collapse-btn" id="mapCollapseBtn" type="button" style="display:none">&#10005; Collapse</button>
       </div>
+      <div class="map-speed-badge" id="mapSpeedBadge" style="display:none">--</div>
+      <button class="map-collapse-btn" id="mapCollapseBtn" type="button" style="display:none">&#10005; Collapse</button>
       <div class="ctl-row">
         <div class="ctl-label"><div class="t">Live view</div><div class="d">Force-polls the car every 5s while on — uses BYD's cloud much more than usual</div></div>
         <label class="switch" id="liveViewWrap"><input type="checkbox" id="liveViewToggle"><span class="track"></span><span class="knob"></span></label>
@@ -1595,23 +1595,38 @@
   // The Location card has its own `transform` (entrance animation) and
   // `overflow:hidden`, both of which trap a `position:fixed` descendant
   // inside the card's own box instead of the real viewport - so going
-  // fullscreen requires physically moving the map wrapper out to <body>
-  // (and back again on collapse), not just toggling a class in place.
-  var carMapWrapHome = null, carMapWrapHomeNext = null;
+  // fullscreen requires physically moving elements out to <body> (and back
+  // again on collapse), not just toggling a class in place. The collapse
+  // button and speed badge are moved out as their own top-level elements
+  // (not nested inside the map wrap) because Leaflet's internal panes/
+  // controls use z-index up to 1000 and a transformed, self-contained
+  // stacking context for tiles - nesting our overlay UI inside the map
+  // container let Leaflet's own layers paint over it.
+  function reparentToBody(el, state){
+    state.home = el.parentNode;
+    state.next = el.nextSibling;
+    document.body.appendChild(el);
+  }
+  function restoreFromBody(el, state){
+    if(state.home) state.home.insertBefore(el, state.next);
+  }
+  var carMapWrapState = {}, mapCollapseBtnState = {}, mapSpeedBadgeState = {};
   function toggleCarMapFullscreen(on){
-    var wrap = $("carMapWrap");
+    var wrap = $("carMapWrap"), collapseBtn = $("mapCollapseBtn"), speedBadge = $("mapSpeedBadge");
     if(!wrap) return;
     if(on){
-      carMapWrapHome = wrap.parentNode;
-      carMapWrapHomeNext = wrap.nextSibling;
-      document.body.appendChild(wrap);
-    } else if(carMapWrapHome){
-      carMapWrapHome.insertBefore(wrap, carMapWrapHomeNext);
+      reparentToBody(wrap, carMapWrapState);
+      reparentToBody(collapseBtn, mapCollapseBtnState);
+      reparentToBody(speedBadge, mapSpeedBadgeState);
+    } else {
+      restoreFromBody(wrap, carMapWrapState);
+      restoreFromBody(collapseBtn, mapCollapseBtnState);
+      restoreFromBody(speedBadge, mapSpeedBadgeState);
     }
     wrap.classList.toggle("fullscreen", on);
     $("mapFullscreenBtn").style.display = on ? "none" : "";
-    $("mapCollapseBtn").style.display = on ? "" : "none";
-    $("mapSpeedBadge").style.display = on ? "" : "none";
+    collapseBtn.style.display = on ? "" : "none";
+    speedBadge.style.display = on ? "" : "none";
     if(carMap){
       setTimeout(function(){
         carMap.invalidateSize();
