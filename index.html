@@ -1645,18 +1645,29 @@
       speedBadge.style.display = on ? "" : "none";
       if(on){
         // TEMPORARY diagnostic for the Android Edge invisible-button bug -
-        // remove once fixed. alert() blocks so there's time to read/copy it.
-        var cbr = collapseBtn.getBoundingClientRect(), sbr = speedBadge.getBoundingClientRect();
-        alert(
-          "cb inBody=" + document.body.contains(collapseBtn) +
-          " display=" + getComputedStyle(collapseBtn).display +
-          " rect=" + Math.round(cbr.top) + "," + Math.round(cbr.left) + "," + Math.round(cbr.width) + "x" + Math.round(cbr.height) +
-          "\nsb inBody=" + document.body.contains(speedBadge) +
-          " display=" + getComputedStyle(speedBadge).display +
-          " rect=" + Math.round(sbr.top) + "," + Math.round(sbr.left) + "," + Math.round(sbr.width) + "x" + Math.round(sbr.height) +
-          "\nviewport=" + window.innerWidth + "x" + window.innerHeight +
-          " bodyClass=" + document.body.className
-        );
+        // remove once fixed. Deferred two frames + a tick so the browser
+        // actually PAINTS the fullscreen change before alert() blocks the
+        // main thread - an alert() called in the same tick as the DOM
+        // change can freeze the screenshot on the pre-change frame even
+        // though the DOM already reflects the new state, which is exactly
+        // what the first diagnostic run showed (stale background, but
+        // "correct" reported rects).
+        requestAnimationFrame(function(){ requestAnimationFrame(function(){ setTimeout(function(){
+          var cbr = collapseBtn.getBoundingClientRect(), sbr = speedBadge.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+          alert(
+            "wrap display=" + getComputedStyle(wrap).display +
+            " pos=" + getComputedStyle(wrap).position +
+            " rect=" + Math.round(wr.top) + "," + Math.round(wr.left) + "," + Math.round(wr.width) + "x" + Math.round(wr.height) +
+            "\ncb inBody=" + document.body.contains(collapseBtn) +
+            " display=" + getComputedStyle(collapseBtn).display +
+            " rect=" + Math.round(cbr.top) + "," + Math.round(cbr.left) + "," + Math.round(cbr.width) + "x" + Math.round(cbr.height) +
+            "\nsb inBody=" + document.body.contains(speedBadge) +
+            " display=" + getComputedStyle(speedBadge).display +
+            " rect=" + Math.round(sbr.top) + "," + Math.round(sbr.left) + "," + Math.round(sbr.width) + "x" + Math.round(sbr.height) +
+            "\nviewport=" + window.innerWidth + "x" + window.innerHeight +
+            " bodyClass=" + document.body.className
+          );
+        }, 200); }); });
       }
     }catch(e){
       toast("Fullscreen map error: "+e.message,"err");
