@@ -1587,9 +1587,22 @@
       carMap.panTo([lat, lon]);
     }
   }
+  // The Location card has its own `transform` (entrance animation) and
+  // `overflow:hidden`, both of which trap a `position:fixed` descendant
+  // inside the card's own box instead of the real viewport - so going
+  // fullscreen requires physically moving the map wrapper out to <body>
+  // (and back again on collapse), not just toggling a class in place.
+  var carMapWrapHome = null, carMapWrapHomeNext = null;
   function toggleCarMapFullscreen(on){
     var wrap = $("carMapWrap");
     if(!wrap) return;
+    if(on){
+      carMapWrapHome = wrap.parentNode;
+      carMapWrapHomeNext = wrap.nextSibling;
+      document.body.appendChild(wrap);
+    } else if(carMapWrapHome){
+      carMapWrapHome.insertBefore(wrap, carMapWrapHomeNext);
+    }
     wrap.classList.toggle("fullscreen", on);
     $("mapFullscreenBtn").hidden = on;
     $("mapCollapseBtn").hidden = !on;
