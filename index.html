@@ -1627,6 +1627,17 @@
     $("mapFullscreenBtn").style.display = on ? "none" : "";
     collapseBtn.style.display = on ? "" : "none";
     speedBadge.style.display = on ? "" : "none";
+    // Fullscreen implies wanting the freshest possible position, so it
+    // drives Live view directly rather than needing a separate toggle -
+    // same on/off pairing as the existing "leaving Car page" behavior.
+    var liveViewToggleEl = $("liveViewToggle");
+    if(on){
+      startLiveView();
+      if(liveViewToggleEl) liveViewToggleEl.checked = true;
+    } else {
+      stopLiveView();
+      if(liveViewToggleEl) liveViewToggleEl.checked = false;
+    }
     if(carMap){
       setTimeout(function(){
         carMap.invalidateSize();
