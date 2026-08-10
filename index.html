@@ -1700,7 +1700,16 @@
       // visual viewport's own true width.
       collapseBtn.style.right = "auto";
       var btnWidth = collapseBtn.getBoundingClientRect().width || collapseBtn.offsetWidth;
-      collapseBtn.style.left = (vv.offsetLeft + vv.width - 16 - btnWidth) + "px";
+      var btnLeft = vv.offsetLeft + vv.width - 16 - btnWidth;
+      collapseBtn.style.left = btnLeft + "px";
+      // Badge stays centered normally, but on a narrow screen that can
+      // collide with the collapse button - cap it so a 10px gap is always
+      // kept instead of letting them overlap.
+      speedBadge.style.transform = "none";
+      var badgeWidth = speedBadge.getBoundingClientRect().width || speedBadge.offsetWidth;
+      var centeredLeft = vv.offsetLeft + vv.width / 2 - badgeWidth / 2;
+      var maxLeft = btnLeft - 10 - badgeWidth;
+      speedBadge.style.left = Math.min(centeredLeft, maxLeft) + "px";
     }
     update();
     vv.addEventListener("resize", update);
@@ -1712,6 +1721,8 @@
       speedBadge.style.top = "";
       collapseBtn.style.right = "";
       collapseBtn.style.left = "";
+      speedBadge.style.left = "";
+      speedBadge.style.transform = "";
     };
   }
   (function wireCarMapFullscreen(){
