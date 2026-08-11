@@ -4357,7 +4357,8 @@
       PEOPLE.forEach(function(p){
         var card = document.querySelector('.c-weight[data-person="'+p.key+'"]');
         if(!card) return;
-        var buckets = bucketHistory(historyByPerson[p.key] || []);
+        var raw = historyByPerson[p.key] || [];
+        var buckets = bucketHistory(raw);
         var wv = card.querySelector(".wv"), deltaEl = card.querySelector(".weight-delta"), chartEl = card.querySelector(".weight-chart");
         if(!buckets.length){
           wv.textContent = "--";
@@ -4365,8 +4366,9 @@
           chartEl.innerHTML = "";
           return;
         }
-        var cur = buckets[buckets.length-1].kg;
-        var delta = +(buckets[buckets.length-1].kg - buckets[0].kg).toFixed(1);
+        var latestRaw = raw.slice().sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); })[0];
+        var cur = latestRaw.weight_kg;
+        var delta = +(cur - buckets[0].kg).toFixed(1);
         wv.textContent = cur.toFixed(1);
         deltaEl.textContent = (delta<=0?"▼ ":"▲ ")+Math.abs(delta)+" kg";
         deltaEl.style.color = p.hex;
