@@ -4295,11 +4295,13 @@
       sorted.forEach(function(r){ byDay[r.ts.slice(0,10)] = r.weight_kg; });
       var days = Object.keys(byDay).map(function(day){ return { date:new Date(day+"T00:00:00"), kg:byDay[day] }; });
       function keyFor(d,g){
+        if(g==="day") return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
         if(g==="week"||g==="biweek"){ var w=isoWeek(d); return g==="week" ? (w.year+"-w"+w.week) : (w.year+"-bw"+Math.ceil(w.week/2)); }
         if(g==="month") return d.getFullYear()+"-m"+d.getMonth();
         return d.getFullYear()+"-q"+Math.floor(d.getMonth()/3);
       }
       function labelFor(d,g){
+        if(g==="day") return d.getDate()+"/"+(d.getMonth()+1);
         if(g==="week"||g==="biweek") return "v."+isoWeek(d).week;
         if(g==="month") return SWE_MONTHS[d.getMonth()];
         return SWE_MONTHS[Math.floor(d.getMonth()/3)*3];
@@ -4316,7 +4318,7 @@
           return { kg: b.sum/b.n, label: labelFor(b.repDate,g), date: b.repDate };
         }).sort(function(a,b){ return a.date-b.date; });
       }
-      var granularities = ["week","biweek","month","quarter"];
+      var granularities = ["day","week","biweek","month","quarter"];
       for(var i=0;i<granularities.length;i++){
         var buckets = bucketize(granularities[i]);
         if(buckets.length <= MAX_BUCKET_POINTS || granularities[i]==="quarter") return buckets;
