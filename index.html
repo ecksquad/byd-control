@@ -1212,6 +1212,14 @@
           <input type="range" id="airhornVol" min="0" max="100" step="1" value="30">
         </div>
         <div class="ctl-row">
+          <div class="ctl-label"><div class="t">🚢 Boat horn</div><div class="d">A long horn blast on both speakers</div></div>
+          <button class="btn ghost small" id="boatHornBtn">Boat horn</button>
+        </div>
+        <div class="range-row">
+          <div class="rr-top"><span class="k">Boat horn volume</span><span class="v" id="boatHornVolVal">25%</span></div>
+          <input type="range" id="boatHornVol" min="0" max="100" step="1" value="25">
+        </div>
+        <div class="ctl-row">
           <div class="ctl-label"><div class="t">👣 Footsteps</div><div class="d">Footsteps on parquet on both speakers</div></div>
           <button class="btn ghost small" id="footstepsBtn">Footsteps</button>
         </div>
@@ -4220,6 +4228,9 @@
   var AIRHORN_URL = "https://ecksquad.github.io/byd-control/airhorn.mp3";
   var AIRHORN_DURATION_MS = 2000; // airhorn.mp3 runs ~1.7s - restore volume once it's done
   function playAirhorn(volume){ return playSonosClip(AIRHORN_URL, volume, AIRHORN_DURATION_MS); }
+  var BOATHORN_URL = "https://ecksquad.github.io/byd-control/boathorn.mp3";
+  var BOATHORN_DURATION_MS = 20700; // boathorn.mp3 runs ~20.6s - restore volume once it's done
+  function playBoatHorn(volume){ return playSonosClip(BOATHORN_URL, volume, BOATHORN_DURATION_MS); }
   var FOOTSTEPS_URL = "https://ecksquad.github.io/byd-control/footsteps.mp3";
   var FOOTSTEPS_DURATION_MS = 11000; // footsteps.mp3 runs ~10.3s - restore volume once it's done
   function playFootsteps(volume){ return playSonosClip(FOOTSTEPS_URL, volume, FOOTSTEPS_DURATION_MS); }
@@ -4254,6 +4265,7 @@
     wireClipButton("whisperBtn", "whisperVol", 0.1, playWhisper, "Whisper");
     wireClipButton("doorKnockBtn", "doorKnockVol", 0.25, playDoorKnock, "Door knock");
     wireClipButton("airhornBtn", "airhornVol", 0.3, playAirhorn, "Air horn");
+    wireClipButton("boatHornBtn", "boatHornVol", 0.25, playBoatHorn, "Boat horn");
     wireClipButton("footstepsBtn", "footstepsVol", 0.2, playFootsteps, "Footsteps");
   })();
 
