@@ -809,7 +809,9 @@
       </div>
 
       <div class="ctl-row" style="margin-top:16px">
-        <div class="ctl-label"><div class="t">Use a schedule</div><div class="d">Auto-starts climate on the days/time below, at the temperature set above</div></div>
+        <div class="ctl-label"><div class="t">Use a schedule</div><div class="d">Auto-starts climate on the days/time below, at the temperature set above</div>
+          <div class="d" id="climSchedStatus" style="margin-top:4px;font-weight:650">--</div>
+        </div>
         <label class="switch" id="climSchedEnabledWrap"><input type="checkbox" id="climSchedEnabled"><span class="track"></span><span class="knob"></span></label>
       </div>
       <div class="alarm-days" id="climSchedDays">
@@ -2614,10 +2616,18 @@
       })[0] || null;
     });
   }
+  function renderClimateSchedStatus(ent){
+    var el = $("climSchedStatus");
+    if(!el) return;
+    if(!ent){ el.textContent = "No schedule saved yet"; el.style.color = "var(--faint)"; return; }
+    if(ent.state === "on"){ el.textContent = "● Enabled — will run on the days/time below"; el.style.color = "var(--accent)"; }
+    else { el.textContent = "○ Disabled"; el.style.color = "var(--faint)"; }
+  }
   function loadClimateSchedule(){
     findClimateSchedEntity().then(function(ent){
       $("climSchedEnabled").checked = !!ent && ent.state === "on";
-    }).catch(function(){ $("climSchedEnabled").checked = false; });
+      renderClimateSchedStatus(ent);
+    }).catch(function(){ $("climSchedEnabled").checked = false; renderClimateSchedStatus(null); });
     haConfigGet("config/automation/config/"+CLIMATE_SCHED_ID).then(function(cfgObj){
       var days = (cfgObj.conditions && cfgObj.conditions[0] && cfgObj.conditions[0].weekday) || [];
       document.querySelectorAll("#climSchedDays input").forEach(function(cb){ cb.checked = days.indexOf(cb.value) !== -1; });
@@ -2646,11 +2656,16 @@
       .then(function(){
         var enable = $("climSchedEnabled").checked;
         return findClimateSchedEntity().then(function(ent){
-          if(!ent) return; // brand new - defaults to enabled, nothing to flip
+          if(!ent || enable === (ent.state === "on")) return; // brand new (defaults on) or already matching
           return haCall("automation", enable ? "turn_on" : "turn_off", { entity_id: ent.entity_id });
         });
       }))
-      .then(function(){ toast("Climate schedule saved","ok"); })
+      .then(function(){
+        toast("Climate schedule saved","ok");
+        // re-read the real state from HA rather than assuming the toggle
+        // call succeeded - this is the actual on/off feedback for the switch
+        setTimeout(function(){ findClimateSchedEntity().then(renderClimateSchedStatus); }, 800);
+      })
       .catch(function(err){ toast("Couldn't save schedule: "+err.message,"err"); });
   });
   loadClimateSchedule();
