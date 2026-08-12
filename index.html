@@ -807,6 +807,29 @@
         <button class="btn primary" id="climateStartBtn">Start climate</button>
         <button class="btn ghost" id="climateStopBtn">Stop</button>
       </div>
+
+      <div class="ctl-row" style="margin-top:16px">
+        <div class="ctl-label"><div class="t">Use a schedule</div><div class="d">Auto-starts climate on the days/time below, at the temperature set above</div></div>
+        <label class="switch" id="climSchedEnabledWrap"><input type="checkbox" id="climSchedEnabled"><span class="track"></span><span class="knob"></span></label>
+      </div>
+      <div class="alarm-days" id="climSchedDays">
+        <label><input type="checkbox" value="mon">Mon</label>
+        <label><input type="checkbox" value="tue">Tue</label>
+        <label><input type="checkbox" value="wed">Wed</label>
+        <label><input type="checkbox" value="thu">Thu</label>
+        <label><input type="checkbox" value="fri">Fri</label>
+        <label><input type="checkbox" value="sat">Sat</label>
+        <label><input type="checkbox" value="sun">Sun</label>
+      </div>
+      <div class="time-row" style="margin:10px 0">
+        <input type="time" id="climSchedTime" value="07:00">
+        <select class="sel" id="climSchedMinutes">
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+        </select>
+        <button class="btn ghost small" id="climSchedSaveBtn">Save schedule</button>
+      </div>
     </div>
 
     <div class="card c-windows">
@@ -2574,6 +2597,50 @@
     controlAction(this, "/climate/stop", {}, "Climate stop");
   });
 
+  // Climate scheduling is implemented as a single, fixed-id HA automation
+  // (created/overwritten in place, never duplicated) that fires the same
+  // byd_control_command event the voice-command automations already use -
+  // reuses the existing event bridge in server.py rather than needing any
+  // new server-side scheduler.
+  var CLIMATE_SCHED_ID = "car_climate_schedule";
+  function loadClimateSchedule(){
+    haGet("automation."+CLIMATE_SCHED_ID).then(function(s){
+      $("climSchedEnabled").checked = s.state === "on";
+    }).catch(function(){ $("climSchedEnabled").checked = false; });
+    haConfigGet("config/automation/config/"+CLIMATE_SCHED_ID).then(function(cfgObj){
+      var days = (cfgObj.conditions && cfgObj.conditions[0] && cfgObj.conditions[0].weekday) || [];
+      document.querySelectorAll("#climSchedDays input").forEach(function(cb){ cb.checked = days.indexOf(cb.value) !== -1; });
+      var at = (cfgObj.triggers && cfgObj.triggers[0] && cfgObj.triggers[0].at) || "07:00:00";
+      $("climSchedTime").value = at.slice(0,5);
+      var action = (cfgObj.actions||[]).filter(function(a){ return a.event === "byd_control_command"; })[0];
+      if(action && action.event_data && action.event_data.minutes){
+        $("climSchedMinutes").value = String(action.event_data.minutes);
+      }
+    }).catch(function(){ /* no schedule saved yet - leave the defaults in the form */ });
+  }
+  $("climSchedSaveBtn").addEventListener("click", function(){
+    var days = Array.prototype.slice.call(document.querySelectorAll("#climSchedDays input:checked")).map(function(cb){ return cb.value; });
+    if(!days.length){ toast("Pick at least one day","err"); return; }
+    var time = $("climSchedTime").value;
+    if(!time){ toast("Pick a time first","err"); return; }
+    var minutes = parseInt($("climSchedMinutes").value, 10);
+    var config = {
+      alias: "Car climate — scheduled preconditioning",
+      triggers:[{ trigger:"time", at: time+":00" }],
+      conditions:[{ condition:"time", weekday: days }],
+      actions:[{ event:"byd_control_command", event_data:{ command:"climate_start", temperature: climateTemp, minutes: minutes } }],
+      mode:"single"
+    };
+    withBusy(haConfigPost("config/automation/config/"+CLIMATE_SCHED_ID, config)
+      .then(function(){
+        var enable = $("climSchedEnabled").checked;
+        return haCall("automation", enable ? "turn_on" : "turn_off", { entity_id: "automation."+CLIMATE_SCHED_ID });
+      }))
+      .then(function(){ toast("Climate schedule saved","ok"); })
+      .catch(function(err){ toast("Couldn't save schedule: "+err.message,"err"); });
+  });
+  loadClimateSchedule();
+
   $("windowsOpenBtn").addEventListener("click", function(){ controlAction(this, "/windows/open", {}, "Crack windows"); });
   $("windowsCloseBtn").addEventListener("click", function(){ controlAction(this, "/windows/close", {}, "Close windows"); });
   $("trunkOpenBtn").addEventListener("click", function(){ controlAction(this, "/trunk/open", {}, "Open boot"); });
@@ -3122,6 +3189,11 @@
   function haGetAllStates(){
     var c = cfg();
     return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/states", { headers:{ "X-Api-Key": c.controlKey } })
+      .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); });
+  }
+  function haConfigGet(path){
+    var c = cfg();
+    return fetch(c.controlUrl.replace(/\/+$/,"")+"/ha/"+path, { headers:{ "X-Api-Key": c.controlKey } })
       .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); });
   }
   function haConfigPost(path, body){
