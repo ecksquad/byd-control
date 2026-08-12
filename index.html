@@ -176,11 +176,14 @@
   .card.collapsed .card-chevron{transform:rotate(-90deg)}
   .card.collapsed .card-body{display:none}
   .tabular{font-variant-numeric:tabular-nums}
-  .weight-row{display:flex;align-items:baseline;gap:14px;margin-bottom:10px}
-  .weight-current{font-size:30px;font-weight:750;color:var(--ink);flex:1}
-  .weight-current .wu{font-size:15px;font-weight:550;color:var(--muted)}
-  .weight-delta{font-size:14px;font-weight:650}
-  .weight-chart{color:var(--ink)}
+  .weight-combined{background:#0c1016;border:1px solid #252c38;color:#ffffff}
+  .weight-legend{display:flex;gap:31px;align-items:center;justify-content:center;margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff}
+  .weight-legend .wl-dot{width:17px;height:17px;border-radius:50%;display:inline-block;margin-right:12px;vertical-align:middle}
+  .weight-chart{width:100%;height:320px}
+  .weight-caption{text-align:center;font-size:11px;color:#ffffff;opacity:.7;margin-top:6px}
+  .weight-curline{display:flex;justify-content:space-between;margin-top:17px}
+  .weight-curline .wl-who{font-size:20px;font-weight:700;margin-right:10px}
+  .weight-curline .wl-val{font-size:27px;font-weight:800;color:#ffffff}
 
   /* overview */
   .c-battery{grid-column:span 4}
@@ -1234,29 +1237,17 @@
 
   <div class="page" id="page-weight" hidden>
     <div class="grid">
-      <div class="card c-weight" data-person="annika" style="grid-column:span 12">
-        <h2><span class="htitle">Annika</span></h2>
-        <div class="weight-row">
-          <div class="weight-current tabular"><span class="wv">--</span><span class="wu"> kg</span></div>
-          <div class="weight-delta tabular"></div>
+      <div class="card weight-combined" style="grid-column:span 12">
+        <div class="weight-legend">
+          <span class="wl-item" data-person="annika"><span class="wl-dot" style="background:#E69F00"></span>Annika</span>
+          <span class="wl-item" data-person="cameron"><span class="wl-dot" style="background:#009E73"></span>Cameron</span>
         </div>
         <div class="weight-chart"></div>
-      </div>
-      <div class="card c-weight" data-person="cameron" style="grid-column:span 12">
-        <h2><span class="htitle">Cameron</span></h2>
-        <div class="weight-row">
-          <div class="weight-current tabular"><span class="wv">--</span><span class="wu"> kg</span></div>
-          <div class="weight-delta tabular"></div>
+        <div class="weight-caption"></div>
+        <div class="weight-curline">
+          <span class="wl-item" data-person="annika"><span class="wl-who" style="color:#E69F00">Annika</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></span>
+          <span class="wl-item" data-person="cameron"><span class="wl-who" style="color:#009E73">Cameron</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></span>
         </div>
-        <div class="weight-chart"></div>
-      </div>
-      <div class="card c-weight" data-person="milo" style="grid-column:span 12">
-        <h2><span class="htitle">Milo</span></h2>
-        <div class="weight-row">
-          <div class="weight-current tabular"><span class="wv">--</span><span class="wu"> kg</span></div>
-          <div class="weight-delta tabular"></div>
-        </div>
-        <div class="weight-chart"></div>
       </div>
     </div>
   </div>
@@ -4272,112 +4263,112 @@
   (function wireWeightPage(){
     var photo = $("carPhoto");
     if(!photo) return;
-    var PEOPLE = [
-      { key:"annika", hex:"#E69F00" },
-      { key:"cameron", hex:"#009E73" },
-      { key:"milo", hex:"#56B4E9" }
-    ];
-    var SWE_MONTHS = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
-    var MAX_BUCKET_POINTS = 10;
+    var COL = { annika:"#E69F00", cameron:"#009E73" };
+    var FIXED_POINTS = 14; // once combined history exceeds 14 days, always show exactly this many points
 
-    function isoWeek(d){
-      var dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-      var dayNum = (dt.getUTCDay()+6)%7;
-      dt.setUTCDate(dt.getUTCDate()-dayNum+3);
-      var firstThursday = new Date(Date.UTC(dt.getUTCFullYear(),0,4));
-      var week = 1+Math.round(((dt-firstThursday)/86400000-3+((firstThursday.getUTCDay()+6)%7))/7);
-      return { year: dt.getUTCFullYear(), week: week };
-    }
-    function bucketHistory(rawHistory){
-      if(!rawHistory || !rawHistory.length) return [];
-      var sorted = rawHistory.slice().sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+    function dayKeyOf(d){ return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate(); }
+    function toDayPoints(rawHistory){
+      // one point per calendar day - lightest reading of the day wins
       var byDay = {};
-      sorted.forEach(function(r){
-        var day = r.ts.slice(0,10);
-        if(!(day in byDay) || r.weight_kg < byDay[day]) byDay[day] = r.weight_kg;
-      });
-      var days = Object.keys(byDay).map(function(day){ return { date:new Date(day+"T00:00:00"), kg:byDay[day] }; });
-      function keyFor(d,g){
-        if(g==="day") return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();
-        if(g==="week"||g==="biweek"){ var w=isoWeek(d); return g==="week" ? (w.year+"-w"+w.week) : (w.year+"-bw"+Math.ceil(w.week/2)); }
-        if(g==="month") return d.getFullYear()+"-m"+d.getMonth();
-        return d.getFullYear()+"-q"+Math.floor(d.getMonth()/3);
-      }
-      function labelFor(d,g){
-        if(g==="day") return d.getDate()+"/"+(d.getMonth()+1);
-        if(g==="week"||g==="biweek") return "v."+isoWeek(d).week;
-        if(g==="month") return SWE_MONTHS[d.getMonth()];
-        return SWE_MONTHS[Math.floor(d.getMonth()/3)*3];
-      }
-      function bucketize(g){
-        var map = {};
-        days.forEach(function(d){
-          var key = keyFor(d.date,g);
-          if(!map[key]) map[key] = { sum:0, n:0, repDate:d.date };
-          map[key].sum += d.kg; map[key].n += 1; map[key].repDate = d.date;
-        });
-        return Object.keys(map).map(function(k){
-          var b = map[k];
-          return { kg: b.sum/b.n, label: labelFor(b.repDate,g), date: b.repDate };
-        }).sort(function(a,b){ return a.date-b.date; });
-      }
-      var granularities = ["day","week","biweek","month","quarter"];
-      for(var i=0;i<granularities.length;i++){
-        var buckets = bucketize(granularities[i]);
-        if(buckets.length <= MAX_BUCKET_POINTS || granularities[i]==="quarter") return buckets;
-      }
-    }
-    function axisChartSVG(buckets, hex, w, h){
-      var mL=52, mR=10, mT=10, mB=30;
-      var plotW=w-mL-mR, plotH=h-mT-mB;
-      var vals = buckets.map(function(b){ return b.kg; });
-      var rawMin=Math.min.apply(null,vals), rawMax=Math.max.apply(null,vals);
-      var pad = Math.max(0.6,(rawMax-rawMin)*0.25);
-      var min=rawMin-pad, max=rawMax+pad;
-      function x(i){ return buckets.length===1 ? mL+plotW/2 : mL+i*(plotW/(buckets.length-1)); }
-      function y(v){ return mT+plotH*(1-(v-min)/(max-min)); }
-      var pts = buckets.map(function(b,i){ return [x(i), y(b.kg)]; });
-      var linePath = pts.map(function(p,i){ return (i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" ");
-      var areaPath = linePath+" L"+pts[pts.length-1][0].toFixed(1)+","+(mT+plotH).toFixed(1)+" L"+pts[0][0].toFixed(1)+","+(mT+plotH).toFixed(1)+" Z";
-      var yTicks = [min+(max-min)*0.15, min+(max-min)*0.5, min+(max-min)*0.85];
-      var gridlines = yTicks.map(function(v){
-        var gy = y(v).toFixed(1);
-        return "<line x1=\""+mL+"\" y1=\""+gy+"\" x2=\""+(mL+plotW).toFixed(1)+"\" y2=\""+gy+"\" stroke=\"currentColor\" stroke-opacity=\".1\" stroke-width=\"1\"/>"+
-          "<text x=\""+(mL-8)+"\" y=\""+(+gy+3.5)+"\" text-anchor=\"end\" font-size=\"11\" fill=\"currentColor\" opacity=\".65\" class=\"tabular\">"+v.toFixed(0)+"</text>";
-      }).join("");
-      var step = Math.max(1, Math.ceil(buckets.length/10));
-      var xLabels = buckets.map(function(b,i){
-        return (i%step===0 || i===buckets.length-1) ? ("<text x=\""+x(i).toFixed(1)+"\" y=\""+(h-4)+"\" text-anchor=\"middle\" font-size=\"10\" fill=\"currentColor\" opacity=\".65\">"+b.label+"</text>") : "";
-      }).join("");
-      return "<svg width=\""+w+"\" height=\""+h+"\" viewBox=\"0 0 "+w+" "+h+"\" style=\"overflow:visible\">"+
-        gridlines+
-        "<path d=\""+areaPath+"\" fill=\""+hex+"\" opacity=\".12\"/>"+
-        "<path d=\""+linePath+"\" fill=\"none\" stroke=\""+hex+"\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"+
-        pts.slice(0,-1).map(function(p){ return "<circle cx=\""+p[0].toFixed(1)+"\" cy=\""+p[1].toFixed(1)+"\" r=\"2.5\" fill=\""+hex+"\" opacity=\".55\"/>"; }).join("")+
-        "<circle cx=\""+pts[pts.length-1][0].toFixed(1)+"\" cy=\""+pts[pts.length-1][1].toFixed(1)+"\" r=\"3.5\" fill=\""+hex+"\"/>"+
-        xLabels+
-      "</svg>";
-    }
-    function renderWeightPage(historyByPerson){
-      PEOPLE.forEach(function(p){
-        var card = document.querySelector('.c-weight[data-person="'+p.key+'"]');
-        if(!card) return;
-        var raw = historyByPerson[p.key] || [];
-        var buckets = bucketHistory(raw);
-        var wv = card.querySelector(".wv"), deltaEl = card.querySelector(".weight-delta"), chartEl = card.querySelector(".weight-chart");
-        if(!buckets.length){
-          wv.textContent = "--";
-          deltaEl.textContent = "";
-          chartEl.innerHTML = "";
-          return;
+      (rawHistory||[]).forEach(function(r){
+        var d = new Date(r.ts);
+        var k = dayKeyOf(d);
+        if(!(k in byDay) || r.weight_kg < byDay[k].kg){
+          byDay[k] = { date:new Date(d.getFullYear(),d.getMonth(),d.getDate()), kg:r.weight_kg };
         }
-        var cur = buckets[buckets.length-1].kg;
-        var delta = +(cur - buckets[0].kg).toFixed(1);
-        wv.textContent = cur.toFixed(1);
-        deltaEl.textContent = (delta<=0?"▼ ":"▲ ")+Math.abs(delta)+" kg";
-        deltaEl.style.color = p.hex;
-        chartEl.style.color = "var(--ink)";
-        chartEl.innerHTML = axisChartSVG(buckets, p.hex, 640, 220);
+      });
+      return Object.keys(byDay).map(function(k){ return byDay[k]; }).sort(function(a,b){ return a.date-b.date; });
+    }
+    function dailyGrid(days, minD, maxD){
+      // one entry per calendar day from minD to maxD, gaps carried forward
+      // (or back-filled from the first real value) so both people's series
+      // always line up on the exact same day, even if one of them missed a day
+      var byTime = {};
+      days.forEach(function(p){ byTime[p.date.getTime()] = p.kg; });
+      var out = [], last = null;
+      for(var t=minD; t<=maxD; t+=86400000){
+        var kg = byTime.hasOwnProperty(t) ? byTime[t] : last;
+        out.push({ date:new Date(t), kg:kg });
+        if(kg!=null) last = kg;
+      }
+      var firstReal = null;
+      for(var i=0;i<out.length;i++){ if(out[i].kg!=null){ firstReal=out[i].kg; break; } }
+      for(var i=0;i<out.length;i++){ if(out[i].kg==null) out[i].kg = firstReal; }
+      return out;
+    }
+    function fixedWindowFromGrid(grid, n){
+      var span = grid.length;
+      var slots = []; for(var i=0;i<n;i++) slots.push({ sum:0, count:0 });
+      grid.forEach(function(p,i){
+        var idx = Math.min(n-1, Math.floor(i/span*n));
+        slots[idx].sum += p.kg; slots[idx].count += 1;
+      });
+      return slots.map(function(s){ return { kg: s.sum/s.count }; });
+    }
+    function buildSeries(annRaw, camRaw){
+      var annDays = toDayPoints(annRaw), camDays = toDayPoints(camRaw);
+      var allDays = annDays.concat(camDays);
+      if(!allDays.length) return null;
+      var minD = Math.min.apply(null, allDays.map(function(p){ return p.date.getTime(); }));
+      var maxD = Math.max.apply(null, allDays.map(function(p){ return p.date.getTime(); }));
+      var annGrid = dailyGrid(annDays, minD, maxD), camGrid = dailyGrid(camDays, minD, maxD);
+      var totalDays = annGrid.length;
+      if(totalDays <= 14){
+        function withLabels(grid){ return grid.map(function(p){ return { kg:p.kg, label:p.date.getDate()+"/"+(p.date.getMonth()+1) }; }); }
+        return { annB: withLabels(annGrid), camB: withLabels(camGrid), labeled:true };
+      }
+      return { annB: fixedWindowFromGrid(annGrid, FIXED_POINTS), camB: fixedWindowFromGrid(camGrid, FIXED_POINTS), labeled:false, spanDays: totalDays };
+    }
+
+    // single shared kg axis for both people, solid white text throughout
+    function combinedAxisSVG(annB, camB, labeled, w, h){
+      var n = Math.max(annB.length, camB.length);
+      var allVals = annB.map(function(b){ return b.kg; }).concat(camB.map(function(b){ return b.kg; }));
+      var min = Math.min.apply(null,allVals), max = Math.max.apply(null,allVals);
+      var range = Math.max(0.8, max-min); min -= range*0.3; max += range*0.3;
+      var mL=52, mR=10, mT=14, mB = labeled?28:12;
+      var plotW=w-mL-mR, plotH=h-mT-mB;
+      function x(i){ return mL+(n===1 ? plotW/2 : i*(plotW/(n-1))); }
+      function y(v){ return mT+plotH*(1-(v-min)/(max-min)); }
+      var ticks=[min+(max-min)*0.1, min+(max-min)*0.5, min+(max-min)*0.9];
+      var grid = ticks.map(function(v){
+        var gy=y(v).toFixed(1);
+        return "<line x1=\""+mL+"\" y1=\""+gy+"\" x2=\""+(mL+plotW).toFixed(1)+"\" y2=\""+gy+"\" stroke=\"#ffffff\" stroke-opacity=\".14\"/>"+
+          "<text x=\""+(mL-8)+"\" y=\""+(+gy+4)+"\" text-anchor=\"end\" font-size=\"12\" fill=\"#ffffff\" font-weight=\"600\">"+v.toFixed(0)+"</text>";
+      }).join("");
+      var xl = "";
+      if(labeled){
+        var src = annB.length>=camB.length ? annB : camB;
+        xl = src.map(function(b,i){
+          return "<text x=\""+x(i).toFixed(1)+"\" y=\""+(h-6)+"\" text-anchor=\"middle\" font-size=\"11\" fill=\"#ffffff\" font-weight=\"600\">"+b.label+"</text>";
+        }).join("");
+      }
+      var defs="";
+      function seriesPath(buckets, color, id){
+        var pts = buckets.map(function(b,i){ return [x(i), y(b.kg)]; });
+        var d = pts.map(function(p,i){ return (i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1); }).join(" ");
+        defs += "<linearGradient id=\""+id+"\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\""+color+"\" stop-opacity=\".45\"/><stop offset=\"1\" stop-color=\""+color+"\" stop-opacity=\"0\"/></linearGradient>";
+        var fill = "<path d=\""+d+" L"+pts[pts.length-1][0].toFixed(1)+","+(mT+plotH).toFixed(1)+" L"+pts[0][0].toFixed(1)+","+(mT+plotH).toFixed(1)+" Z\" fill=\"url(#"+id+")\"/>";
+        return fill+"<path d=\""+d+"\" fill=\"none\" stroke=\""+color+"\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"+
+          "<circle cx=\""+pts[pts.length-1][0].toFixed(1)+"\" cy=\""+pts[pts.length-1][1].toFixed(1)+"\" r=\"5.5\" fill=\""+color+"\"/>";
+      }
+      var body = grid+seriesPath(annB,COL.annika,"wga")+seriesPath(camB,COL.cameron,"wgc")+xl;
+      return "<svg viewBox=\"0 0 "+w+" "+h+"\" preserveAspectRatio=\"none\" width=\"100%\" height=\"100%\"><defs>"+defs+"</defs>"+body+"</svg>";
+    }
+
+    function renderWeightPage(historyByPerson){
+      var built = buildSeries(historyByPerson.annika, historyByPerson.cameron);
+      var chartEl = document.querySelector(".weight-chart"), captionEl = document.querySelector(".weight-caption");
+      if(!built){
+        if(chartEl) chartEl.innerHTML = "";
+        if(captionEl) captionEl.textContent = "";
+        return;
+      }
+      if(chartEl) chartEl.innerHTML = combinedAxisSVG(built.annB, built.camB, built.labeled, 640, 320);
+      if(captionEl) captionEl.textContent = built.labeled ? "" : ("last "+built.spanDays+" days · "+FIXED_POINTS+" points");
+      [["annika",built.annB],["cameron",built.camB]].forEach(function(pair){
+        var buckets = pair[1], cur = buckets[buckets.length-1].kg;
+        document.querySelectorAll('.wl-item[data-person="'+pair[0]+'"] .wv').forEach(function(el){ el.textContent = cur.toFixed(1); });
       });
     }
     function loadWeightHistory(){
