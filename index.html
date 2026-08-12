@@ -812,7 +812,7 @@
         <div class="ctl-label"><div class="t">Use a schedule</div><div class="d">Auto-starts climate on the days/time below, at the temperature set above</div>
           <div class="d" id="climSchedStatus" style="margin-top:4px;font-weight:650">--</div>
         </div>
-        <label class="switch" id="climSchedEnabledWrap"><input type="checkbox" id="climSchedEnabled"><span class="track"></span><span class="knob"></span></label>
+        <label class="switch" id="climSchedEnabledWrap"><input type="checkbox" id="climSchedEnabled" checked><span class="track"></span><span class="knob"></span></label>
       </div>
       <div class="alarm-days" id="climSchedDays">
         <label><input type="checkbox" value="mon">Mon</label>
@@ -2652,21 +2652,35 @@
       actions:[{ event:"byd_control_command", event_data:{ command:"climate_start", temperature: climateTemp, minutes: minutes } }],
       mode:"single"
     };
-    withBusy(haConfigPost("config/automation/config/"+CLIMATE_SCHED_ID, config)
-      .then(function(){
-        var enable = $("climSchedEnabled").checked;
-        return findClimateSchedEntity().then(function(ent){
-          if(!ent || enable === (ent.state === "on")) return; // brand new (defaults on) or already matching
-          return haCall("automation", enable ? "turn_on" : "turn_off", { entity_id: ent.entity_id });
-        });
-      }))
+    withBusy(haConfigPost("config/automation/config/"+CLIMATE_SCHED_ID, config))
       .then(function(){
         toast("Climate schedule saved","ok");
-        // re-read the real state from HA rather than assuming the toggle
-        // call succeeded - this is the actual on/off feedback for the switch
         setTimeout(function(){ findClimateSchedEntity().then(renderClimateSchedStatus); }, 800);
       })
       .catch(function(err){ toast("Couldn't save schedule: "+err.message,"err"); });
+  });
+  // Enable/disable applies immediately on toggle, same as every other
+  // switch in this app - it's not deferred to the Save button, which only
+  // covers the days/time/duration config.
+  $("climSchedEnabled").addEventListener("change", function(e){
+    var wantOn = e.target.checked;
+    findClimateSchedEntity().then(function(ent){
+      if(!ent){
+        e.target.checked = false;
+        toast("Save a schedule first, then you can enable it","err");
+        return;
+      }
+      withBusy(haCall("automation", wantOn ? "turn_on" : "turn_off", { entity_id: ent.entity_id }))
+        .then(function(){
+          toast("Climate schedule "+(wantOn?"enabled":"disabled"),"ok");
+          setTimeout(function(){ findClimateSchedEntity().then(renderClimateSchedStatus); }, 800);
+        })
+        .catch(function(err){
+          toast("Couldn't change schedule: "+err.message,"err");
+          e.target.checked = !wantOn;
+          renderClimateSchedStatus(ent);
+        });
+    });
   });
   loadClimateSchedule();
 
