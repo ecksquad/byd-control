@@ -2603,9 +2603,20 @@
   // reuses the existing event bridge in server.py rather than needing any
   // new server-side scheduler.
   var CLIMATE_SCHED_ID = "car_climate_schedule";
+  // HA assigns entity_id by slugifying the alias text (not the config "id"
+  // field), and keeps whatever entity_id got assigned on first creation even
+  // if the alias changes later - so it has to be looked up by its stored
+  // attributes.id, never assumed as "automation."+CLIMATE_SCHED_ID.
+  function findClimateSchedEntity(){
+    return haGetAllStates().then(function(all){
+      return all.filter(function(e){
+        return e.entity_id.indexOf("automation.")===0 && e.attributes && e.attributes.id === CLIMATE_SCHED_ID;
+      })[0] || null;
+    });
+  }
   function loadClimateSchedule(){
-    haGet("automation."+CLIMATE_SCHED_ID).then(function(s){
-      $("climSchedEnabled").checked = s.state === "on";
+    findClimateSchedEntity().then(function(ent){
+      $("climSchedEnabled").checked = !!ent && ent.state === "on";
     }).catch(function(){ $("climSchedEnabled").checked = false; });
     haConfigGet("config/automation/config/"+CLIMATE_SCHED_ID).then(function(cfgObj){
       var days = (cfgObj.conditions && cfgObj.conditions[0] && cfgObj.conditions[0].weekday) || [];
@@ -2634,7 +2645,10 @@
     withBusy(haConfigPost("config/automation/config/"+CLIMATE_SCHED_ID, config)
       .then(function(){
         var enable = $("climSchedEnabled").checked;
-        return haCall("automation", enable ? "turn_on" : "turn_off", { entity_id: "automation."+CLIMATE_SCHED_ID });
+        return findClimateSchedEntity().then(function(ent){
+          if(!ent) return; // brand new - defaults to enabled, nothing to flip
+          return haCall("automation", enable ? "turn_on" : "turn_off", { entity_id: ent.entity_id });
+        });
       }))
       .then(function(){ toast("Climate schedule saved","ok"); })
       .catch(function(err){ toast("Couldn't save schedule: "+err.message,"err"); });
