@@ -182,8 +182,11 @@
   .weight-chart{width:100%;height:320px}
   .weight-caption{text-align:center;font-size:11px;color:#ffffff;opacity:.7;margin-top:6px}
   .weight-curline{display:flex;justify-content:space-between;margin-top:17px}
+  .wl-block{display:flex;flex-direction:column}
+  .wl-row{display:flex;align-items:baseline}
   .weight-curline .wl-who{font-size:20px;font-weight:700;margin-right:10px}
   .weight-curline .wl-val{font-size:20px;font-weight:800;color:#ffffff}
+  .wl-steps{font-size:12px;color:#ffffff;opacity:.6;margin-top:3px}
 
   /* overview */
   .c-battery{grid-column:span 4}
@@ -1245,8 +1248,14 @@
         <div class="weight-chart"></div>
         <div class="weight-caption"></div>
         <div class="weight-curline">
-          <span class="wl-item" data-person="annika"><span class="wl-who" style="color:#E69F00">Annika</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></span>
-          <span class="wl-item" data-person="cameron"><span class="wl-who" style="color:#009E73">Cameron</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></span>
+          <div class="wl-block" data-person="annika">
+            <div class="wl-row"><span class="wl-who" style="color:#E69F00">Annika</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></div>
+            <div class="wl-steps tabular">-- steps</div>
+          </div>
+          <div class="wl-block" data-person="cameron">
+            <div class="wl-row"><span class="wl-who" style="color:#009E73">Cameron</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></div>
+            <div class="wl-steps tabular">-- steps</div>
+          </div>
         </div>
       </div>
     </div>
@@ -4368,7 +4377,18 @@
       if(captionEl) captionEl.textContent = built.labeled ? "" : ("last "+built.spanDays+" days · "+FIXED_POINTS+" points");
       [["annika",built.annB],["cameron",built.camB]].forEach(function(pair){
         var buckets = pair[1], cur = buckets[buckets.length-1].kg;
-        document.querySelectorAll('.wl-item[data-person="'+pair[0]+'"] .wv').forEach(function(el){ el.textContent = cur.toFixed(1); });
+        document.querySelectorAll('.wl-block[data-person="'+pair[0]+'"] .wv').forEach(function(el){ el.textContent = cur.toFixed(1); });
+      });
+    }
+    var STEP_ENTITIES = { cameron:"sensor.cams_phone_daily_steps" };
+    function loadSteps(){
+      Object.keys(STEP_ENTITIES).forEach(function(person){
+        var el = document.querySelector('.wl-block[data-person="'+person+'"] .wl-steps');
+        if(!el) return;
+        haGet(STEP_ENTITIES[person]).then(function(s){
+          var v = num(s);
+          el.textContent = v==null ? "-- steps" : Math.round(v).toLocaleString()+" steps";
+        }).catch(function(){ el.textContent = "-- steps"; });
       });
     }
     function loadWeightHistory(){
@@ -4394,6 +4414,7 @@
         taps = [];
         showPage("weight");
         loadWeightHistory();
+        loadSteps();
       }
     });
   })();
