@@ -582,14 +582,6 @@
   .toast.err{color:var(--bad)}
   .toast.ok{color:var(--good)}
 
-  /* logo easter egg confetti */
-  .confetti-piece{position:fixed;top:-16px;width:8px;height:14px;border-radius:2px;pointer-events:none;z-index:80;
-    animation-name:confettiFall;animation-timing-function:cubic-bezier(.4,.1,.6,.9);animation-fill-mode:forwards;opacity:.95}
-  @keyframes confettiFall{
-    0%{transform:translateY(0) rotate(0deg);opacity:.95}
-    100%{transform:translateY(105vh) rotate(var(--rot));opacity:0}
-  }
-
   /* settings modal */
   .modal-veil{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
   .modal-veil.show{display:flex}
@@ -3041,10 +3033,9 @@
   // Thunder rides along with Storm mode the same way the siren does -
   // starts when the lights start flashing, stops (and restores each
   // speaker's own prior volume) when they stop. Base cadence is once every
-  // 10s (THUNDER_URL/playThunder are the same clip+function the Stormbull
-  // logo easter egg uses); the "Storm randomness" slider jitters both the
-  // wait between strikes and each strike's volume so back-to-back storms
-  // don't sound identical, more like real thunder than a metronome.
+  // 10s; the "Storm randomness" slider jitters both the wait between
+  // strikes and each strike's volume so back-to-back storms don't sound
+  // identical, more like real thunder than a metronome.
   var STORM_THUNDER_BASE_MS = 10000;
   var stormThunderActive = false;
   var stormThunderTimer = null;
@@ -3135,8 +3126,7 @@
   // scope rather than "outdoor", since the siren is meant to flash every
   // light, inside and out, not just the outdoor ones the toggle controls
   // on its own. Pressing this is meant to feel like pulling the alarm, not
-  // just playing a sound. Volume is restored per-speaker on stop, same
-  // pattern as playMoo/playThunder further down.
+  // just playing a sound. Volume is restored per-speaker on stop.
   var SIREN_URL = "https://ecksquad.github.io/byd-control/siren.mp3";
   var SIREN_DURATION_MS = 5400; // siren.mp3 runs ~5.4s - re-trigger on this cadence while active
   var sirenActive = false;
@@ -4218,98 +4208,13 @@
     render();
   });
 
-  // Easter egg: 5 taps on the header mark within 2s fires a confetti burst
-  // and a real cow moo played through both Sonos speakers (a synthesized
-  // Web Audio version was tried first and just sounded bad - a genuine
-  // recording is what actually reads as a moo). "Cow Moo" by Mike Koenig,
-  // soundbible.com, CC BY 3.0 - hosted alongside index.html rather than
-  // linked from soundbible.com directly since Sonos fetches the URL itself
-  // and shouldn't depend on a third-party site staying up. A thunder crack
-  // follows right after (Pixabay Content License, no attribution required)
-  // - completing the Stormbull pun (storm + bull).
-  var MOO_URL = "https://ecksquad.github.io/byd-control/moo.mp3";
   var THUNDER_URL = "https://ecksquad.github.io/byd-control/thunder.mp3";
-  var MOO_DURATION_MS = 3000; // moo.mp3 runs ~3.64s - start the thunder ~0.6s before its tail ends, a bit of overlap instead of a hard cut
-  var THUNDER_DURATION_MS = 7300; // thunder.mp3 runs ~7.16s - restore volume once it's done
-  function playThunder(volume){
-    var speakers = [EH.sonosTv, EH.sonosKitchen];
-    haCall("media_player", "play_media", {
-      entity_id: speakers,
-      media_content_id: THUNDER_URL,
-      media_content_type: "music"
-    }).catch(function(){});
-  }
-  function playMoo(volume){
-    var speakers = [EH.sonosTv, EH.sonosKitchen];
-    // Snapshot whatever each speaker was actually at beforehand (not the
-    // fixed SONOS_DEFAULT_VOL used for alarms) so this one-off gag puts
-    // volume back exactly where the house found it, not some house default.
-    var priorVolumes = speakers.map(function(id){
-      var mp = state[id];
-      return (mp && mp.attributes && typeof mp.attributes.volume_level === "number") ? mp.attributes.volume_level : null;
-    });
-    haCall("media_player", "volume_set", { entity_id: speakers, volume_level: volume })
-      .then(function(){
-        return haCall("media_player", "play_media", {
-          entity_id: speakers,
-          media_content_id: MOO_URL,
-          media_content_type: "music"
-        });
-      })
-      .then(function(){
-        setTimeout(function(){ playThunder(volume); }, MOO_DURATION_MS);
-        setTimeout(function(){
-          speakers.forEach(function(id, i){
-            if(priorVolumes[i] === null) return;
-            haCall("media_player", "volume_set", { entity_id: id, volume_level: priorVolumes[i] }).catch(function(){});
-          });
-        }, MOO_DURATION_MS + THUNDER_DURATION_MS);
-      })
-      .catch(function(){});
-  }
-  function fireConfetti(){
-    if(reduceMotion) return;
-    var colors = ["var(--accent)","var(--good)","var(--warn)","var(--bad)","var(--ink)"];
-    var frag = document.createDocumentFragment();
-    var pieces = [];
-    for(var i=0;i<60;i++){
-      var el = document.createElement("i");
-      el.className = "confetti-piece";
-      el.style.left = (Math.random()*100)+"vw";
-      el.style.background = colors[Math.floor(Math.random()*colors.length)];
-      el.style.animationDelay = (Math.random()*0.3)+"s";
-      el.style.animationDuration = (1.6+Math.random()*1.2)+"s";
-      el.style.setProperty("--rot", Math.round(Math.random()*720-360)+"deg");
-      frag.appendChild(el);
-      pieces.push(el);
-    }
-    document.body.appendChild(frag);
-    setTimeout(function(){ pieces.forEach(function(el){ el.remove(); }); }, 3200);
-  }
-  (function wireLogoEasterEgg(){
-    var logo = document.querySelector(".h-logo");
-    if(!logo) return;
-    logo.style.cursor = "pointer";
-    var taps = [];
-    logo.addEventListener("click", function(){
-      var now = Date.now();
-      taps = taps.filter(function(t){ return now - t < 2000; });
-      taps.push(now);
-      if(taps.length >= 5){
-        taps = [];
-        fireConfetti();
-        playMoo(0.5);
-      }
-    });
-  })();
 
   // Secret page: 3 taps on the "Connected" pill within 1.5s (only while it's
   // actually green/online) reveals a hidden Fun stuff page - Storm mode and
   // the air raid siren live there now instead of the House page, alongside
   // the two one-shot sound buttons below. Every clip here plays on BOTH
-  // speakers, saving and restoring each one's own prior volume afterward -
-  // same pattern as playMoo/playThunder above, just factored out since it's
-  // now used by three different clips instead of one.
+  // speakers, saving and restoring each one's own prior volume afterward.
   function playSonosClip(url, volume, durationMs){
     // sonos.snapshot/restore (not just a volume save) so whatever was
     // actually playing - radio included - picks back up afterward, not
