@@ -177,16 +177,16 @@
   .card.collapsed .card-body{display:none}
   .tabular{font-variant-numeric:tabular-nums}
   .weight-combined{background:#0c1016;border:1px solid #252c38;color:#ffffff}
-  .weight-legend{display:flex;gap:31px;align-items:center;justify-content:center;margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff}
-  .weight-legend .wl-dot{width:17px;height:17px;border-radius:50%;display:inline-block;margin-right:12px;vertical-align:middle}
+  .weight-legend{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:center;margin:0 0 20px;font-size:18px;font-weight:700;color:#ffffff}
+  .weight-legend .wl-dot{width:14px;height:14px;border-radius:50%;display:inline-block;margin-right:9px;vertical-align:middle}
   .weight-chart{width:100%;height:320px}
   .weight-caption{text-align:center;font-size:11px;color:#ffffff;opacity:.7;margin-top:6px}
-  .weight-curline{display:flex;justify-content:space-between;margin-top:17px}
-  .wl-block{display:flex;flex-direction:column}
-  .wl-row{display:flex;align-items:baseline}
-  .weight-curline .wl-who{font-size:20px;font-weight:700;margin-right:10px}
-  .weight-curline .wl-val{font-size:20px;font-weight:800;color:#ffffff}
-  .wl-steps{font-size:12px;color:#ffffff;opacity:.6;margin-top:3px}
+  .weight-curline{display:flex;justify-content:space-between;gap:10px;margin-top:17px}
+  .wl-block{display:flex;flex-direction:column;min-width:0}
+  .wl-row{display:flex;align-items:baseline;flex-wrap:wrap}
+  .weight-curline .wl-who{font-size:16px;font-weight:700;margin-right:7px}
+  .weight-curline .wl-val{font-size:16px;font-weight:800;color:#ffffff;white-space:nowrap}
+  .wl-steps{font-size:11px;color:#ffffff;opacity:.6;margin-top:3px;white-space:nowrap}
 
   /* overview */
   .c-battery{grid-column:span 4}
@@ -1261,6 +1261,7 @@
         <div class="weight-legend">
           <span class="wl-item" data-person="annika"><span class="wl-dot" style="background:#E69F00"></span>Annika</span>
           <span class="wl-item" data-person="cameron"><span class="wl-dot" style="background:#009E73"></span>Cameron</span>
+          <span class="wl-item" data-person="axel"><span class="wl-dot" style="background:#0072B2"></span>Axel</span>
         </div>
         <div class="weight-chart"></div>
         <div class="weight-caption"></div>
@@ -1271,6 +1272,10 @@
           </div>
           <div class="wl-block" data-person="cameron">
             <div class="wl-row"><span class="wl-who" style="color:#009E73">Cameron</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></div>
+            <div class="wl-steps tabular">-- steps</div>
+          </div>
+          <div class="wl-block" data-person="axel">
+            <div class="wl-row"><span class="wl-who" style="color:#0072B2">Axel</span><span class="wl-val tabular"><span class="wv">--</span> kg</span></div>
             <div class="wl-steps tabular">-- steps</div>
           </div>
         </div>
@@ -3839,25 +3844,29 @@
   function connectMirrorCam(){
     if(mCamPc) return;
     mCamStatus("Connecting…");
-    fetch(mirrorCamUrl("rtc=reset&id="+encodeURIComponent(MIRROR_CAM_ID)),{method:"POST"}).catch(function(){}).then(function(){
-      mCamPc=new RTCPeerConnection({iceServers:MIRROR_RTC_ICE});
-      mCamPc.addTransceiver("video",{direction:"recvonly"});
-      mCamPc.ontrack=function(ev){
-        var v=$("mirrorCamVideo");
-        if(v && v.srcObject!==ev.streams[0]){
-          v.srcObject=ev.streams[0]; v.play().catch(function(){});
-          v.onloadedmetadata=function(){ mCamStatus("Live"); };
-        }
-      };
-      mCamPc.onconnectionstatechange=function(){
-        if(!mCamPc) return;
-        var v=$("mirrorCamVideo");
-        if(mCamPc.connectionState==="connected" && !(v&&v.srcObject)) mCamStatus("Connected, waiting for video…");
-        else if(mCamPc.connectionState==="failed"||mCamPc.connectionState==="disconnected") mCamStatus("Connection lost");
-      };
-      return mCamPc.createOffer().then(function(offer){ return mCamPc.setLocalDescription(offer); })
-        .then(function(){ mCamStatus("Finding a route…"); return mirrorCamWaitIce(mCamPc,4000); });
-    }).then(function(){
+    // Reset call and local ICE gathering are independent, so run them
+    // concurrently instead of waiting on the network round-trip before
+    // even starting to gather candidates - same single request, just
+    // no longer serialized in front of it.
+    var resetP=fetch(mirrorCamUrl("rtc=reset&id="+encodeURIComponent(MIRROR_CAM_ID)),{method:"POST"}).catch(function(){});
+    mCamPc=new RTCPeerConnection({iceServers:MIRROR_RTC_ICE});
+    mCamPc.addTransceiver("video",{direction:"recvonly"});
+    mCamPc.ontrack=function(ev){
+      var v=$("mirrorCamVideo");
+      if(v && v.srcObject!==ev.streams[0]){
+        v.srcObject=ev.streams[0]; v.play().catch(function(){});
+        v.onloadedmetadata=function(){ mCamStatus("Live"); };
+      }
+    };
+    mCamPc.onconnectionstatechange=function(){
+      if(!mCamPc) return;
+      var v=$("mirrorCamVideo");
+      if(mCamPc.connectionState==="connected" && !(v&&v.srcObject)) mCamStatus("Connected, waiting for video…");
+      else if(mCamPc.connectionState==="failed"||mCamPc.connectionState==="disconnected") mCamStatus("Connection lost");
+    };
+    var offerP=mCamPc.createOffer().then(function(offer){ return mCamPc.setLocalDescription(offer); })
+      .then(function(){ mCamStatus("Finding a route…"); return mirrorCamWaitIce(mCamPc,2500); });
+    Promise.all([resetP,offerP]).then(function(){
       if(!mCamPc) return;
       return fetch(mirrorCamUrl("rtc=sdp&role=offer&id="+encodeURIComponent(MIRROR_CAM_ID)),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"offer",sdp:mCamPc.localDescription.sdp,_ts:Date.now()})});
     }).then(function(){
@@ -4292,7 +4301,11 @@
   (function wireWeightPage(){
     var photo = $("carPhoto");
     if(!photo) return;
-    var COL = { annika:"#E69F00", cameron:"#009E73" };
+    var PEOPLE = [
+      { key:"annika", color:"#E69F00" },
+      { key:"cameron", color:"#009E73" },
+      { key:"axel", color:"#0072B2" }
+    ];
     var FIXED_POINTS = 14; // once combined history exceeds 14 days, always show exactly this many points
 
     function dayKeyOf(d){ return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate(); }
@@ -4334,25 +4347,26 @@
       });
       return slots.map(function(s){ return { kg: s.sum/s.count }; });
     }
-    function buildSeries(annRaw, camRaw){
-      var annDays = toDayPoints(annRaw), camDays = toDayPoints(camRaw);
-      var allDays = annDays.concat(camDays);
+    function buildSeries(historyByPerson){
+      var perPerson = PEOPLE.map(function(p){ return { key:p.key, days: toDayPoints(historyByPerson[p.key]) }; });
+      var allDays = perPerson.reduce(function(acc,s){ return acc.concat(s.days); }, []);
       if(!allDays.length) return null;
       var minD = Math.min.apply(null, allDays.map(function(p){ return p.date.getTime(); }));
       var maxD = Math.max.apply(null, allDays.map(function(p){ return p.date.getTime(); }));
-      var annGrid = dailyGrid(annDays, minD, maxD), camGrid = dailyGrid(camDays, minD, maxD);
-      var totalDays = annGrid.length;
+      var grids = perPerson.map(function(s){ return { key:s.key, grid: dailyGrid(s.days, minD, maxD) }; });
+      var totalDays = grids[0].grid.length;
       if(totalDays <= 14){
         function withLabels(grid){ return grid.map(function(p){ return { kg:p.kg, label:p.date.getDate()+"/"+(p.date.getMonth()+1) }; }); }
-        return { annB: withLabels(annGrid), camB: withLabels(camGrid), labeled:true };
+        return { series: grids.map(function(g){ return { key:g.key, buckets: withLabels(g.grid) }; }), labeled:true };
       }
-      return { annB: fixedWindowFromGrid(annGrid, FIXED_POINTS), camB: fixedWindowFromGrid(camGrid, FIXED_POINTS), labeled:false, spanDays: totalDays };
+      return { series: grids.map(function(g){ return { key:g.key, buckets: fixedWindowFromGrid(g.grid, FIXED_POINTS) }; }), labeled:false, spanDays: totalDays };
     }
 
-    // single shared kg axis for both people, solid white text throughout
-    function combinedAxisSVG(annB, camB, labeled, w, h){
-      var n = Math.max(annB.length, camB.length);
-      var allVals = annB.map(function(b){ return b.kg; }).concat(camB.map(function(b){ return b.kg; }));
+    // single shared kg axis for every tracked person, solid white text throughout
+    function combinedAxisSVG(series, labeled, w, h){
+      series = series.filter(function(s){ return s.buckets.some(function(b){ return b.kg!=null; }); });
+      var n = Math.max.apply(null, series.map(function(s){ return s.buckets.length; }));
+      var allVals = series.reduce(function(acc,s){ return acc.concat(s.buckets.map(function(b){ return b.kg; })); }, []).filter(function(v){ return v!=null; });
       var min = Math.min.apply(null,allVals), max = Math.max.apply(null,allVals);
       var range = Math.max(0.8, max-min); min -= range*0.3; max += range*0.3;
       var mL=52, mR=10, mT=14, mB = labeled?28:12;
@@ -4367,7 +4381,7 @@
       }).join("");
       var xl = "";
       if(labeled){
-        var src = annB.length>=camB.length ? annB : camB;
+        var src = series.reduce(function(a,b){ return b.buckets.length>=a.buckets.length ? b : a; }).buckets;
         xl = src.map(function(b,i){
           return "<text x=\""+x(i).toFixed(1)+"\" y=\""+(h-6)+"\" text-anchor=\"middle\" font-size=\"11\" fill=\"#ffffff\" font-weight=\"600\">"+b.label+"</text>";
         }).join("");
@@ -4381,23 +4395,28 @@
         return fill+"<path d=\""+d+"\" fill=\"none\" stroke=\""+color+"\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>"+
           "<circle cx=\""+pts[pts.length-1][0].toFixed(1)+"\" cy=\""+pts[pts.length-1][1].toFixed(1)+"\" r=\"5.5\" fill=\""+color+"\"/>";
       }
-      var body = grid+seriesPath(annB,COL.annika,"wga")+seriesPath(camB,COL.cameron,"wgc")+xl;
+      var body = grid+series.map(function(s,i){ return seriesPath(s.buckets, s.color, "wg"+i); }).join("")+xl;
       return "<svg viewBox=\"0 0 "+w+" "+h+"\" preserveAspectRatio=\"none\" width=\"100%\" height=\"100%\"><defs>"+defs+"</defs>"+body+"</svg>";
     }
 
     function renderWeightPage(historyByPerson){
-      var built = buildSeries(historyByPerson.annika, historyByPerson.cameron);
+      var built = buildSeries(historyByPerson);
       var chartEl = document.querySelector(".weight-chart"), captionEl = document.querySelector(".weight-caption");
       if(!built){
         if(chartEl) chartEl.innerHTML = "";
         if(captionEl) captionEl.textContent = "";
         return;
       }
-      if(chartEl) chartEl.innerHTML = combinedAxisSVG(built.annB, built.camB, built.labeled, 640, 320);
+      var withColor = built.series.map(function(s){
+        var p = PEOPLE.filter(function(pp){ return pp.key===s.key; })[0];
+        return { buckets:s.buckets, color:p.color };
+      });
+      if(chartEl) chartEl.innerHTML = combinedAxisSVG(withColor, built.labeled, 640, 320);
       if(captionEl) captionEl.textContent = built.labeled ? "" : ("last "+built.spanDays+" days · "+FIXED_POINTS+" points");
-      [["annika",built.annB],["cameron",built.camB]].forEach(function(pair){
-        var buckets = pair[1], cur = buckets[buckets.length-1].kg;
-        document.querySelectorAll('.wl-block[data-person="'+pair[0]+'"] .wv').forEach(function(el){ el.textContent = cur.toFixed(1); });
+      built.series.forEach(function(s){
+        var buckets = s.buckets, cur = buckets[buckets.length-1].kg;
+        if(cur==null) return;
+        document.querySelectorAll('.wl-block[data-person="'+s.key+'"] .wv').forEach(function(el){ el.textContent = cur.toFixed(1); });
       });
     }
     var STEP_ENTITIES = { cameron:"sensor.cams_phone_daily_steps" };
